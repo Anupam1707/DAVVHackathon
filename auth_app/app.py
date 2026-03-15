@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from scripts.db_manager import (
     init_db, get_user_by_phone, verify_password, update_failed_attempts, 
-    log_audit, set_last_login, add_user, user_exists
+    log_audit, set_last_login, add_user, user_exists, update_fingerprint_index
 )
 from scripts.sms_service import send_otp, check_otp, get_latest_otp
 from scripts.fingerprint import FingerprintManager
@@ -73,6 +73,7 @@ with st.sidebar:
     if st.button("Logout", key="logout_sidebar"):
         st.session_state.auth_state = 'CREDENTIALS'
         st.session_state.current_user = None
+        st.session_state.temp_reg_data = {}
         st.rerun()
 
 # --- Auth Flow ---
@@ -123,6 +124,7 @@ elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
     new_phone = st.text_input("Mobile Number")
     new_pass = st.text_input("Choose Passphrase (min 12 characters)", type="password")
     confirm_pass = st.text_input("Confirm Passphrase", type="password")
+    is_admin = st.checkbox("Register as Admin (Requires Biometrics)")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -137,7 +139,8 @@ elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
                 if send_otp(new_phone):
                     st.session_state.temp_reg_data = {
                         'phone': new_phone,
-                        'password': new_pass
+                        'password': new_pass,
+                        'is_admin': is_admin
                     }
                     set_state('REGISTER_MFA')
                     st.rerun()
@@ -154,22 +157,51 @@ elif st.session_state.auth_state == 'REGISTER_MFA':
     st.write(f"Verifying: {st.session_state.temp_reg_data.get('phone')}")
     reg_code = st.text_input("Enter 6-digit verification code", max_chars=6)
     
-    if st.button("Verify & Create Account"):
-        phone = st.session_state.temp_reg_data['phone']
-        password = st.session_state.temp_reg_data['password']
-        
-        if check_otp(phone, reg_code):
-            if add_user(phone, password):
-                st.success("Account created successfully!")
+    if st.button("Verify Code"):
+        if check_otp(st.session_state.temp_reg_data['phone'], reg_code):
+            # If admin, must enroll fingerprint now
+            if st.session_state.temp_reg_data.get('is_admin'):
+                set_state('REGISTER_BIOMETRIC')
+            else:
+                # Direct creation for normal users
+                if add_user(st.session_state.temp_reg_data['phone'], st.session_state.temp_reg_data['password']):
+                    st.success("Account created successfully!")
+                    time.sleep(1.5)
+                    set_state('CREDENTIALS')
+                    st.rerun()
+                else:
+                    st.error("Error creating account.")
+            st.rerun()
+        else:
+            st.error("Invalid verification code.")
+
+# 4. Registration Biometric Enrollment
+elif st.session_state.auth_state == 'REGISTER_BIOMETRIC':
+    st.title("Admin Enrollment: Biometric")
+    st.warning("Please enroll your fingerprint to complete registration.")
+    
+    sim_trigger = st.text_input("Keyboard Trigger (Type 's' and Enter to simulate scan)", key="reg_sim_trigger")
+    
+    if st.button("Enroll Fingerprint") or sim_trigger.lower() == 's':
+        fm = FingerprintManager()
+        idx = fm.enroll_user()
+        if idx != -1:
+            if add_user(
+                st.session_state.temp_reg_data['phone'], 
+                st.session_state.temp_reg_data['password'], 
+                is_admin=True, 
+                fingerprint_index=idx
+            ):
+                st.success("Admin account created with Biometrics!")
                 time.sleep(1.5)
                 set_state('CREDENTIALS')
                 st.rerun()
             else:
-                st.error("Error saving user. Please try again.")
+                st.error("Error saving account.")
         else:
-            st.error("Invalid verification code.")
+            st.error("Biometric enrollment failed.")
 
-# 4. Login MFA
+# 5. Login MFA
 elif st.session_state.auth_state == 'MFA':
     st.title("MFA Verification")
     st.write(f"Enter the 6-digit code sent to {st.session_state.current_user['phone_number']}")
@@ -188,7 +220,7 @@ elif st.session_state.auth_state == 'MFA':
             st.error("Invalid code.")
             time.sleep(2)
 
-# 5. Biometric
+# 6. Login Biometric Verification
 elif st.session_state.auth_state == 'BIOMETRIC':
     st.title("Physical Biometric Check")
     st.warning("Admin Access Required: Please use physical scanner or simulate with 's'.")
@@ -200,6 +232,7 @@ elif st.session_state.auth_state == 'BIOMETRIC':
             st.info("No fingerprint found. Initiating enrollment...")
             idx = fm.enroll_user()
             if idx != -1:
+                update_fingerprint_index(st.session_state.current_user['id'], idx)
                 st.success(f"Fingerprint enrolled at index {idx}")
                 set_state('DASHBOARD')
                 st.rerun()
@@ -215,7 +248,7 @@ elif st.session_state.auth_state == 'BIOMETRIC':
                 log_audit(st.session_state.current_user['id'], 'BIOMETRIC_FAIL')
                 time.sleep(2)
 
-# 6. Dashboard
+# 7. Dashboard
 elif st.session_state.auth_state == 'DASHBOARD':
     user = st.session_state.current_user
     st.title(f"Welcome, {user['phone_number']}")

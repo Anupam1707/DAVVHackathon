@@ -66,14 +66,14 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
-def add_user(phone_number: str, password: str, is_admin: bool = False) -> bool:
+def add_user(phone_number: str, password: str, is_admin: bool = False, fingerprint_index: int = -1) -> bool:
     conn = get_connection()
     cursor = conn.cursor()
     try:
         pw_hash = hash_password(password)
         cursor.execute(
-            'INSERT INTO users (phone_number, password_hash, is_admin) VALUES (?, ?, ?)',
-            (phone_number, pw_hash, 1 if is_admin else 0)
+            'INSERT INTO users (phone_number, password_hash, is_admin, fingerprint_index) VALUES (?, ?, ?, ?)',
+            (phone_number, pw_hash, 1 if is_admin else 0, fingerprint_index)
         )
         conn.commit()
         return True
@@ -81,6 +81,13 @@ def add_user(phone_number: str, password: str, is_admin: bool = False) -> bool:
         return False
     finally:
         conn.close()
+
+def update_fingerprint_index(user_id: int, index: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET fingerprint_index = ? WHERE id = ?', (index, user_id))
+    conn.commit()
+    conn.close()
 
 def get_user_by_phone(phone_number: str):
     conn = get_connection()
