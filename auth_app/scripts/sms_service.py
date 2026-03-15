@@ -1,30 +1,29 @@
 import random
-
-# Global dictionary to act as the "network" holding sent messages
-# In a real app, this would be a database, but for a demo, a global works.
-VIRTUAL_INBOX = {}
+import streamlit as st
 
 def send_otp(phone_number: str):
     """
-    Simulates sending a 6-digit code by storing it in a virtual inbox.
+    Simulates sending a 6-digit code by storing it in a session-safe virtual inbox.
     """
+    if 'virtual_inbox' not in st.session_state:
+        st.session_state.virtual_inbox = {}
+        
     otp = str(random.randint(100000, 999999))
-    VIRTUAL_INBOX[phone_number] = {
-        'code': otp,
-        'timestamp': None # Could add expiry logic here
-    }
+    st.session_state.virtual_inbox[phone_number] = otp
+    
+    # Also print to terminal for backup
     print(f"[VIRTUAL SMS] OTP for {phone_number}: {otp}")
     return True
 
 def check_otp(phone_number: str, code: str):
     """
-    Checks the virtual inbox for a matching code.
+    Checks the session-safe virtual inbox for a matching code.
     """
-    if phone_number in VIRTUAL_INBOX:
-        stored_code = VIRTUAL_INBOX[phone_number]['code']
-        if code == stored_code:
-            # Clear the inbox after successful use
-            del VIRTUAL_INBOX[phone_number]
+    if 'virtual_inbox' in st.session_state:
+        inbox = st.session_state.virtual_inbox
+        if phone_number in inbox and inbox[phone_number] == code:
+            # Clear the code after successful verification for security
+            del st.session_state.virtual_inbox[phone_number]
             return True
     return False
 
@@ -32,4 +31,6 @@ def get_latest_otp(phone_number: str):
     """
     Helper for the UI to 'peek' into the inbox.
     """
-    return VIRTUAL_INBOX.get(phone_number, {}).get('code')
+    if 'virtual_inbox' in st.session_state:
+        return st.session_state.virtual_inbox.get(phone_number)
+    return None
