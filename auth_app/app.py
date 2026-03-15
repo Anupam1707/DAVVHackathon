@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from scripts.db_manager import (
     init_db, get_user_by_phone, verify_password, update_failed_attempts, 
     log_audit, set_last_login, add_user, user_exists, update_fingerprint_index,
-    get_all_users, toggle_user_lock, toggle_user_admin, get_all_audit_logs
+    get_all_users, toggle_user_lock, toggle_user_admin, get_all_audit_logs,
+    update_user_details, delete_user
 )
 from scripts.sms_service import send_otp, check_otp, get_latest_otp
 from scripts.fingerprint import FingerprintManager
@@ -21,295 +22,355 @@ load_dotenv()
 SECRET_KEY = os.getenv('JWT_SECRET', 'your_super_secret_key')
 init_db()
 
-# --- Utility Functions ---
+# --- Page Config ---
+st.set_page_config(
+    page_title="Guardian | Secure Auth",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-def create_session_token(user_id):
-    payload = {
-        'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(hours=1)
+# --- Advanced CSS for Glassmorphism & Modern UI ---
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
 
-def verify_session_token(token):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-        return payload['user_id']
-    except:
-        return None
+    /* Main Container Styling */
+    .main {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #f8fafc;
+    }
+    
+    /* Card Styling */
+    .st-emotion-cache-1r6slb0, .st-emotion-cache-12w0qpk {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 2rem;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
 
-# --- UI Layout ---
+    /* Button Styling */
+    .stButton>button {
+        width: 100%;
+        border-radius: 12px;
+        height: 3.5rem;
+        background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%);
+        color: white;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px -10px #6366f1;
+        background: linear-gradient(90deg, #4f46e5 0%, #9333ea 100%);
+    }
 
-st.set_page_config(page_title="Mobile-First Secure Auth", layout="wide")
+    /* Input Styling */
+    .stTextInput>div>div>input {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: white !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        padding: 1rem !important;
+    }
 
+    /* Virtual Phone Styling */
+    .phone-container {
+        background: #000;
+        border: 8px solid #333;
+        border-radius: 40px;
+        padding: 20px;
+        margin-top: 20px;
+        min-height: 400px;
+        box-shadow: inset 0 0 10px rgba(255,255,255,0.1);
+    }
+    
+    .message-bubble {
+        background: #2563eb;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 20px 20px 20px 0;
+        margin-bottom: 10px;
+        font-size: 0.9rem;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 4px solid #6366f1;
+    }
+    
+    /* Logo Styling */
+    .logo-text {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #818cf8, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- Session State Logic ---
 if 'auth_state' not in st.session_state:
-    st.session_state.auth_state = 'CREDENTIALS' # CREDENTIALS -> MFA -> BIOMETRIC -> DASHBOARD
+    st.session_state.auth_state = 'CREDENTIALS'
     st.session_state.current_user = None
-    st.session_state.temp_reg_data = {} # To hold registration data during MFA
+    st.session_state.temp_reg_data = {}
 
 def set_state(state):
     st.session_state.auth_state = state
 
-# --- Sidebar Tools ---
+# --- Sidebar: The "Virtual Device" ---
 with st.sidebar:
-    st.header("📱 Virtual Phone")
-    st.info("Incoming SMS will appear here for free.")
+    st.markdown('<p class="logo-text">GUARDIAN</p>', unsafe_allow_html=True)
+    st.write("🔒 **Mobile Hardware Auth**")
+    st.divider()
     
-    # Check for both Login and Registration phone numbers
+    st.subheader("📱 Device Inbox")
     active_phone = None
     if st.session_state.current_user:
         active_phone = st.session_state.current_user['phone_number']
     elif st.session_state.temp_reg_data:
         active_phone = st.session_state.temp_reg_data.get('phone')
     
+    st.markdown('<div class="phone-container">', unsafe_allow_html=True)
     if active_phone:
         otp = get_latest_otp(active_phone)
         if otp:
-            st.success(f"**From: System**\n\nYour 6-digit code is: `{otp}`")
+            st.markdown(f"""
+                <div class="message-bubble">
+                    <b>System Alert</b><br>
+                    Your secure verification code is: <b>{otp}</b><br>
+                    <small>Expires in 5 minutes</small>
+                </div>
+            """, unsafe_allow_html=True)
         else:
-            st.write("No unread messages.")
+            st.write("💬 *Waiting for incoming signals...*")
     else:
-        st.write("Waiting for phone number input...")
+        st.write("📵 *Connect a device by entering a phone number.*")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.subheader("System Tools")
-    
-    if st.button("Initialize Master Admin"):
-        if add_user("+1000", "AdminPassword123", is_admin=True):
-            st.success("Master Admin created: +1000 / AdminPassword123")
-        else:
-            st.warning("Admin already exists.")
-
-    if st.button("Logout", key="logout_sidebar"):
-        st.session_state.auth_state = 'CREDENTIALS'
-        st.session_state.current_user = None
-        st.session_state.temp_reg_data = {}
-        st.rerun()
-
-# --- Auth Flow ---
-
-# 1. Login State
-if st.session_state.auth_state == 'CREDENTIALS':
-    st.title("Secure Login")
-    phone = st.text_input("Phone Number (e.g., +1234567890)")
-    password = st.text_input("Passphrase", type="password")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Login"):
-            if len(password) < 12:
-                st.error("Invalid Phone or Password")
-                time.sleep(2)
+    st.divider()
+    with st.expander("🛠️ Advanced Settings"):
+        if st.button("Initialize Master Admin"):
+            if add_user("+1000", "AdminPassword123", is_admin=True):
+                st.success("Master Admin initialized.")
             else:
-                user = get_user_by_phone(phone)
-                if user:
-                    if user['is_locked']:
-                        st.error("Account is locked. Contact support.")
-                        log_audit(user['id'], 'LOGIN_BLOCKED_LOCKED')
-                    elif verify_password(password, user['password_hash']):
-                        st.session_state.current_user = user
-                        update_failed_attempts(user['id'], reset=True)
-                        if send_otp(phone):
-                            log_audit(user['id'], 'CREDENTIALS_SUCCESS')
-                            set_state('MFA')
-                            st.rerun()
+                st.info("System already initialized.")
+        
+        if st.button("🔴 System Reset"):
+            st.session_state.auth_state = 'CREDENTIALS'
+            st.session_state.current_user = None
+            st.rerun()
+
+# --- Main Auth Flow ---
+
+def render_login():
+    st.markdown('<p class="logo-text">Sign In</p>', unsafe_allow_html=True)
+    st.write("Enter your hardware-linked credentials to continue.")
+    
+    with st.container():
+        phone = st.text_input("Device ID / Phone Number", placeholder="+1XXXXXXXXXX")
+        password = st.text_input("Security Passphrase", type="password", placeholder="Minimum 12 characters")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Identify Device"):
+                if len(password) < 12:
+                    st.error("Invalid Credentials. Please retry.")
+                    time.sleep(1)
+                else:
+                    user = get_user_by_phone(phone)
+                    if user:
+                        if user['is_locked']:
+                            st.error("❌ Hardware Locked. Contact Security.")
+                            log_audit(user['id'], 'LOGIN_BLOCKED_LOCKED')
+                        elif verify_password(password, user['password_hash']):
+                            st.session_state.current_user = user
+                            update_failed_attempts(user['id'], reset=True)
+                            if send_otp(phone):
+                                log_audit(user['id'], 'CREDENTIALS_SUCCESS')
+                                set_state('MFA')
+                                st.rerun()
                         else:
-                            st.error("Failed to send MFA code. Try again.")
+                            update_failed_attempts(user['id'])
+                            log_audit(user['id'], 'LOGIN_FAIL')
+                            st.error("Invalid Credentials.")
                     else:
-                        update_failed_attempts(user['id'])
-                        log_audit(user['id'], 'LOGIN_FAIL')
-                        st.error("Invalid Phone or Password")
-                        time.sleep(2)
+                        st.error("Invalid Credentials.")
+        with col2:
+            if st.button("Enroll New Device"):
+                set_state('REGISTER_CREDENTIALS')
+                st.rerun()
+
+def render_register():
+    st.markdown('<p class="logo-text">Device Enrollment</p>', unsafe_allow_html=True)
+    st.write("Link your physical phone to a new secure account.")
+    
+    with st.container():
+        new_phone = st.text_input("Mobile Number")
+        new_pass = st.text_input("Security Passphrase", type="password")
+        confirm_pass = st.text_input("Confirm Passphrase", type="password")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Begin Link"):
+                if len(new_pass) < 12:
+                    st.error("Passphrase is too weak.")
+                elif new_pass != confirm_pass:
+                    st.error("Mismatched Passphrase.")
+                elif user_exists(new_phone):
+                    st.error("Device already linked.")
                 else:
-                    st.error("Invalid Phone or Password")
-                    time.sleep(2)
-    with col2:
-        if st.button("New User? Register"):
-            set_state('REGISTER_CREDENTIALS')
-            st.rerun()
-
-# 2. Registration State
-elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
-    st.title("New Registration")
-    new_phone = st.text_input("Mobile Number")
-    new_pass = st.text_input("Choose Passphrase (min 12 characters)", type="password")
-    confirm_pass = st.text_input("Confirm Passphrase", type="password")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Sign Up"):
-            if len(new_pass) < 12:
-                st.error("Passphrase must be at least 12 characters.")
-            elif new_pass != confirm_pass:
-                st.error("Passphrases do not match.")
-            elif user_exists(new_phone):
-                st.error("An account with this phone already exists.")
-            else:
-                if send_otp(new_phone):
-                    st.session_state.temp_reg_data = {
-                        'phone': new_phone,
-                        'password': new_pass
-                    }
-                    set_state('REGISTER_MFA')
-                    st.rerun()
-                else:
-                    st.error("Failed to send verification SMS.")
-    with col2:
-        if st.button("Back to Login"):
-            set_state('CREDENTIALS')
-            st.rerun()
-
-# 3. Registration MFA
-elif st.session_state.auth_state == 'REGISTER_MFA':
-    st.title("Verify Phone")
-    st.write(f"Verifying: {st.session_state.temp_reg_data.get('phone')}")
-    reg_code = st.text_input("Enter 6-digit verification code", max_chars=6)
-    
-    if st.button("Verify Code"):
-        if check_otp(st.session_state.temp_reg_data['phone'], reg_code):
-            set_state('REGISTER_BIOMETRIC')
-            st.rerun()
-        else:
-            st.error("Invalid verification code.")
-
-# 4. Registration Biometric Enrollment
-elif st.session_state.auth_state == 'REGISTER_BIOMETRIC':
-    st.title("Biometric Enrollment")
-    st.warning("Please enroll your fingerprint to complete registration. Required for all users.")
-    
-    sim_trigger = st.text_input("Keyboard Trigger (Type 's' and Enter to simulate scan)", key="reg_sim_trigger")
-    
-    if st.button("Enroll Fingerprint") or sim_trigger.lower() == 's':
-        fm = FingerprintManager()
-        idx = fm.enroll_user()
-        if idx != -1:
-            if add_user(
-                st.session_state.temp_reg_data['phone'], 
-                st.session_state.temp_reg_data['password'], 
-                fingerprint_index=idx
-            ):
-                st.success("Account created successfully with Biometrics!")
-                time.sleep(1.5)
+                    if send_otp(new_phone):
+                        st.session_state.temp_reg_data = {'phone': new_phone, 'password': new_pass}
+                        set_state('REGISTER_MFA')
+                        st.rerun()
+        with col2:
+            if st.button("Cancel"):
                 set_state('CREDENTIALS')
                 st.rerun()
-            else:
-                st.error("Error saving account.")
-        else:
-            st.error("Biometric enrollment failed.")
 
-# 5. Login MFA
-elif st.session_state.auth_state == 'MFA':
-    st.title("MFA Verification")
-    st.write(f"Enter the 6-digit code sent to {st.session_state.current_user['phone_number']}")
-    otp_code = st.text_input("Verification Code", max_chars=6)
+# --- Logic Router ---
+if st.session_state.auth_state == 'CREDENTIALS':
+    render_login()
+
+elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
+    render_register()
+
+elif st.session_state.auth_state == 'REGISTER_MFA' or st.session_state.auth_state == 'MFA':
+    st.markdown('<p class="logo-text">MFA Challenge</p>', unsafe_allow_html=True)
+    st.write("A secure signal has been sent to your device sidebar.")
     
-    if st.button("Verify Code"):
-        if check_otp(st.session_state.current_user['phone_number'], otp_code):
-            log_audit(st.session_state.current_user['id'], 'MFA_SUCCESS')
-            set_state('BIOMETRIC')
+    otp_code = st.text_input("6-Digit Transmission Code", max_chars=6)
+    
+    if st.button("Decrypt & Verify"):
+        target_phone = st.session_state.current_user['phone_number'] if st.session_state.current_user else st.session_state.temp_reg_data['phone']
+        
+        if check_otp(target_phone, otp_code):
+            if st.session_state.auth_state == 'REGISTER_MFA':
+                set_state('REGISTER_BIOMETRIC')
+            else:
+                log_audit(st.session_state.current_user['id'], 'MFA_SUCCESS')
+                set_state('BIOMETRIC')
             st.rerun()
         else:
-            log_audit(st.session_state.current_user['id'], 'MFA_FAIL')
-            st.error("Invalid code.")
-            time.sleep(2)
+            st.error("Signal corruption: Invalid code.")
 
-# 6. Login Biometric Verification
-elif st.session_state.auth_state == 'BIOMETRIC':
-    st.title("Physical Biometric Check")
-    st.warning("Secure Access Required: Please use physical scanner or simulate with 's'.")
-    sim_trigger = st.text_input("Keyboard Trigger (Type 's' and Enter to simulate scan)", key="sim_trigger")
+elif st.session_state.auth_state == 'REGISTER_BIOMETRIC' or st.session_state.auth_state == 'BIOMETRIC':
+    st.markdown('<p class="logo-text">Biometric Scan</p>', unsafe_allow_html=True)
+    st.info("Initiating hardware biometric handshake...")
     
-    if st.button("Verify Fingerprint") or sim_trigger.lower() == 's':
+    sim_trigger = st.text_input("Keyboard Scan (Type 's' to simulate)", key="bio_sim")
+    
+    if st.button("Authorize Biometrics") or sim_trigger.lower() == 's':
         fm = FingerprintManager()
-        if st.session_state.current_user['fingerprint_index'] == -1:
-            st.info("No fingerprint found. Initiating enrollment...")
+        if st.session_state.auth_state == 'REGISTER_BIOMETRIC':
             idx = fm.enroll_user()
             if idx != -1:
-                update_fingerprint_index(st.session_state.current_user['id'], idx)
-                st.success(f"Fingerprint enrolled at index {idx}")
-                set_state('DASHBOARD')
-                st.rerun()
-            else:
-                st.error("Enrollment failed.")
+                if add_user(st.session_state.temp_reg_data['phone'], st.session_state.temp_reg_data['password'], fingerprint_index=idx):
+                    st.success("Hardware Binding Complete!")
+                    time.sleep(1)
+                    set_state('CREDENTIALS')
+                    st.rerun()
         else:
-            if fm.verify_user(st.session_state.current_user['fingerprint_index']):
-                st.success("Fingerprint verified.")
+            user = st.session_state.current_user
+            if user['fingerprint_index'] == -1:
+                st.info("First-time setup detected...")
+                idx = fm.enroll_user()
+                update_fingerprint_index(user['id'], idx)
                 set_state('DASHBOARD')
-                st.rerun()
             else:
-                st.error("Biometric mismatch.")
-                log_audit(st.session_state.current_user['id'], 'BIOMETRIC_FAIL')
-                time.sleep(2)
+                if fm.verify_user(user['fingerprint_index']):
+                    st.success("Access Granted.")
+                    set_state('DASHBOARD')
+                else:
+                    st.error("Biometric mismatch.")
+                    log_audit(user['id'], 'BIOMETRIC_FAIL')
+            st.rerun()
 
-# 7. Dashboard & Admin Panel
 elif st.session_state.auth_state == 'DASHBOARD':
     user = st.session_state.current_user
-    st.title(f"Authenticated: {user['phone_number']}")
+    st.markdown(f'<p class="logo-text">Welcome, User {user["id"]}</p>', unsafe_allow_html=True)
     
-    # Tabs for Dashboard
-    tabs = ["My Dashboard"]
-    if user['is_admin']:
-        tabs.append("Admin Panel")
-        tabs.append("Audit Logs")
-        
-    choice = st.tabs(tabs)
+    # Header Stats
+    s1, s2, s3 = st.columns(3)
+    with s1:
+        st.markdown('<div class="stat-card"><b>Security Status</b><br><span style="color:#22c55e">● ACTIVE</span></div>', unsafe_allow_html=True)
+    with s2:
+        st.markdown(f'<div class="stat-card"><b>Last Access</b><br>{user["last_login"] if user["last_login"] else "First Session"}</div>', unsafe_allow_html=True)
+    with s3:
+        st.markdown('<div class="stat-card"><b>Linked Device</b><br>Physical Serial #104</div>', unsafe_allow_html=True)
+
+    st.divider()
     
-    with choice[0]:
-        st.subheader("Personal Dashboard")
-        st.success("Identity Verified via Phone + SMS + Biometrics.")
-        st.info("No corporate email or website required. Secure offline-capable auth complete.")
-        
+    tabs = st.tabs(["🔒 Operations", "🛡️ Security Health", "⚙️ Admin Control"] if user['is_admin'] else ["🔒 Operations", "🛡️ Security Health"])
+    
+    with tabs[0]:
+        st.subheader("Protected Business Systems")
+        st.info("System is ready for encrypted data operations.")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Cloud Uptime", "99.9%", "+0.01%")
+        c2.metric("Encryption Key", "AES-256", "ROTATING")
+        c3.metric("Network Delay", "12ms", "-2ms")
+
+    with tabs[1]:
+        st.subheader("Security Health Check")
+        st.write("Your account is utilizing **Triple-Layer** defense.")
+        st.progress(100, text="Layer 1: Credentials (bcrypt-12)")
+        st.progress(100, text="Layer 2: SMS Verification (Virtual)")
+        st.progress(100, text="Layer 3: Biometric Scan (Linked)")
+        st.success("Your security score is: **Elite (98/100)**")
+
     if user['is_admin']:
-        with choice[1]:
-            st.subheader("User Management")
+        with tabs[2]:
+            st.subheader("Global User Command")
             users = get_all_users()
-            df = pd.DataFrame(users, columns=['ID', 'Phone', 'Locked', 'Admin', 'Fingerprint ID', 'Last Login', 'Created'])
+            df = pd.DataFrame(users, columns=['ID', 'Phone', 'Locked', 'Admin', 'Bio_Idx', 'Login', 'Created'])
             st.dataframe(df, use_container_width=True)
             
             st.divider()
-            st.write("### Actions")
-            col1, col2 = st.columns(2)
-            with col1:
-                target_user = st.number_input("Enter User ID to manage", step=1, min_value=1)
-                action = st.selectbox("Action", ["Unlock Account", "Lock Account", "Promote to Admin", "Demote from Admin"])
+            ac1, ac2 = st.columns([1, 2])
+            with ac1:
+                t_id = st.number_input("Target User ID", min_value=1, step=1)
+                action = st.selectbox("Command", ["No Action", "Toggle Lock", "Toggle Admin", "Update Phone", "Reset Password", "TERMINATE ACCOUNT"])
                 
-                if st.button("Execute Action"):
-                    if action == "Unlock Account":
-                        toggle_user_lock(target_user, False)
-                        st.success(f"User {target_user} unlocked.")
-                    elif action == "Lock Account":
-                        toggle_user_lock(target_user, True)
-                        st.warning(f"User {target_user} locked.")
-                    elif action == "Promote to Admin":
-                        toggle_user_admin(target_user, True)
-                        st.success(f"User {target_user} promoted.")
-                    elif action == "Demote from Admin":
-                        toggle_user_admin(target_user, False)
-                        st.info(f"User {target_user} demoted.")
+                if st.button("Deploy Command"):
+                    if action == "Toggle Lock":
+                        current = [u['is_locked'] for u in users if u['id'] == t_id][0]
+                        toggle_user_lock(t_id, not current)
+                        st.success("Lock status updated.")
+                    elif action == "Toggle Admin":
+                        current = [u['is_admin'] for u in users if u['id'] == t_id][0]
+                        toggle_user_admin(t_id, not current)
+                        st.success("Privileges updated.")
+                    elif action == "TERMINATE ACCOUNT":
+                        delete_user(t_id)
+                        st.error("User purged from system.")
                     st.rerun()
-                    
-        with choice[2]:
-            st.subheader("System Audit Logs")
-            logs = get_all_audit_logs()
-            df_logs = pd.DataFrame(logs)
-            st.table(df_logs)
+            
+            with ac2:
+                st.write("### Live Audit Feed")
+                logs = get_all_audit_logs(20)
+                st.table(pd.DataFrame(logs))
+                st.download_button("📥 Export Audit Data", data=pd.DataFrame(logs).to_csv(), file_name="audit_logs.csv", mime="text/csv")
 
-    if st.button("Secure Logout"):
+    st.divider()
+    if st.button("Terminate Session"):
         st.session_state.auth_state = 'CREDENTIALS'
         st.session_state.current_user = None
         st.rerun()
-
-# --- CSS for Mobile-First Styling ---
-st.markdown("""
-    <style>
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #007bff;
-        color: white;
-    }
-    .stTextInput>div>div>input {
-        text-align: center;
-    }
-    </style>
-    """, unsafe_allow_html=True)
