@@ -133,6 +133,38 @@ def set_last_login(user_id: int):
     conn.commit()
     conn.close()
 
+def get_all_users():
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, phone_number, is_locked, is_admin, fingerprint_index, last_login, created_at FROM users')
+    users = cursor.fetchall()
+    conn.close()
+    return users
+
+def toggle_user_lock(user_id: int, status: bool):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET is_locked = ? WHERE id = ?', (1 if status else 0, user_id))
+    conn.commit()
+    conn.close()
+
+def toggle_user_admin(user_id: int, status: bool):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET is_admin = ? WHERE id = ?', (1 if status else 0, user_id))
+    conn.commit()
+    conn.close()
+
+def get_all_audit_logs(limit: int = 50):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT ?', (limit,))
+    logs = cursor.fetchall()
+    conn.close()
+    return logs
+
 if __name__ == "__main__":
     init_db()
     print("Database initialized.")

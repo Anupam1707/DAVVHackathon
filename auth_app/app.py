@@ -3,12 +3,14 @@ import time
 import uuid
 import jwt
 import os
+import pandas as pd
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 from scripts.db_manager import (
     init_db, get_user_by_phone, verify_password, update_failed_attempts, 
-    log_audit, set_last_login, add_user, user_exists, update_fingerprint_index
+    log_audit, set_last_login, add_user, user_exists, update_fingerprint_index,
+    get_all_users, toggle_user_lock, toggle_user_admin, get_all_audit_logs
 )
 from scripts.sms_service import send_otp, check_otp, get_latest_otp
 from scripts.fingerprint import FingerprintManager
@@ -37,7 +39,7 @@ def verify_session_token(token):
 
 # --- UI Layout ---
 
-st.set_page_config(page_title="Mobile-First Secure Auth", layout="centered")
+st.set_page_config(page_title="Mobile-First Secure Auth", layout="wide")
 
 if 'auth_state' not in st.session_state:
     st.session_state.auth_state = 'CREDENTIALS' # CREDENTIALS -> MFA -> BIOMETRIC -> DASHBOARD
@@ -70,6 +72,13 @@ with st.sidebar:
 
     st.markdown("---")
     st.subheader("System Tools")
+    
+    if st.button("Initialize Master Admin"):
+        if add_user("+1000", "AdminPassword123", is_admin=True):
+            st.success("Master Admin created: +1000 / AdminPassword123")
+        else:
+            st.warning("Admin already exists.")
+
     if st.button("Logout", key="logout_sidebar"):
         st.session_state.auth_state = 'CREDENTIALS'
         st.session_state.current_user = None
@@ -157,7 +166,6 @@ elif st.session_state.auth_state == 'REGISTER_MFA':
     
     if st.button("Verify Code"):
         if check_otp(st.session_state.temp_reg_data['phone'], reg_code):
-            # All users must enroll fingerprint now
             set_state('REGISTER_BIOMETRIC')
             st.rerun()
         else:
@@ -166,7 +174,7 @@ elif st.session_state.auth_state == 'REGISTER_MFA':
 # 4. Registration Biometric Enrollment
 elif st.session_state.auth_state == 'REGISTER_BIOMETRIC':
     st.title("Biometric Enrollment")
-    st.warning("Please enroll your fingerprint to complete registration. This is required for all users.")
+    st.warning("Please enroll your fingerprint to complete registration. Required for all users.")
     
     sim_trigger = st.text_input("Keyboard Trigger (Type 's' and Enter to simulate scan)", key="reg_sim_trigger")
     
@@ -177,7 +185,6 @@ elif st.session_state.auth_state == 'REGISTER_BIOMETRIC':
             if add_user(
                 st.session_state.temp_reg_data['phone'], 
                 st.session_state.temp_reg_data['password'], 
-                is_admin=False, # Default to regular user unless specified otherwise in logic
                 fingerprint_index=idx
             ):
                 st.success("Account created successfully with Biometrics!")
@@ -198,7 +205,6 @@ elif st.session_state.auth_state == 'MFA':
     if st.button("Verify Code"):
         if check_otp(st.session_state.current_user['phone_number'], otp_code):
             log_audit(st.session_state.current_user['id'], 'MFA_SUCCESS')
-            # All users must go through Biometric now
             set_state('BIOMETRIC')
             st.rerun()
         else:
@@ -234,18 +240,60 @@ elif st.session_state.auth_state == 'BIOMETRIC':
                 log_audit(st.session_state.current_user['id'], 'BIOMETRIC_FAIL')
                 time.sleep(2)
 
-# 7. Dashboard
+# 7. Dashboard & Admin Panel
 elif st.session_state.auth_state == 'DASHBOARD':
     user = st.session_state.current_user
-    st.title(f"Welcome, {user['phone_number']}")
-    st.success("Authentication successful.")
-    set_last_login(user['id'])
-    log_audit(user['id'], 'LOGIN_SUCCESS')
+    st.title(f"Authenticated: {user['phone_number']}")
     
-    st.write("---")
-    st.subheader("Business Operations Dashboard")
-    st.info("You are now securely logged into the system.")
-    if st.button("Logout"):
+    # Tabs for Dashboard
+    tabs = ["My Dashboard"]
+    if user['is_admin']:
+        tabs.append("Admin Panel")
+        tabs.append("Audit Logs")
+        
+    choice = st.tabs(tabs)
+    
+    with choice[0]:
+        st.subheader("Personal Dashboard")
+        st.success("Identity Verified via Phone + SMS + Biometrics.")
+        st.info("No corporate email or website required. Secure offline-capable auth complete.")
+        
+    if user['is_admin']:
+        with choice[1]:
+            st.subheader("User Management")
+            users = get_all_users()
+            df = pd.DataFrame(users, columns=['ID', 'Phone', 'Locked', 'Admin', 'Fingerprint ID', 'Last Login', 'Created'])
+            st.dataframe(df, use_container_width=True)
+            
+            st.divider()
+            st.write("### Actions")
+            col1, col2 = st.columns(2)
+            with col1:
+                target_user = st.number_input("Enter User ID to manage", step=1, min_value=1)
+                action = st.selectbox("Action", ["Unlock Account", "Lock Account", "Promote to Admin", "Demote from Admin"])
+                
+                if st.button("Execute Action"):
+                    if action == "Unlock Account":
+                        toggle_user_lock(target_user, False)
+                        st.success(f"User {target_user} unlocked.")
+                    elif action == "Lock Account":
+                        toggle_user_lock(target_user, True)
+                        st.warning(f"User {target_user} locked.")
+                    elif action == "Promote to Admin":
+                        toggle_user_admin(target_user, True)
+                        st.success(f"User {target_user} promoted.")
+                    elif action == "Demote from Admin":
+                        toggle_user_admin(target_user, False)
+                        st.info(f"User {target_user} demoted.")
+                    st.rerun()
+                    
+        with choice[2]:
+            st.subheader("System Audit Logs")
+            logs = get_all_audit_logs()
+            df_logs = pd.DataFrame(logs)
+            st.table(df_logs)
+
+    if st.button("Secure Logout"):
         st.session_state.auth_state = 'CREDENTIALS'
         st.session_state.current_user = None
         st.rerun()
