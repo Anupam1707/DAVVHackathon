@@ -124,7 +124,6 @@ elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
     new_phone = st.text_input("Mobile Number")
     new_pass = st.text_input("Choose Passphrase (min 12 characters)", type="password")
     confirm_pass = st.text_input("Confirm Passphrase", type="password")
-    is_admin = st.checkbox("Register as Admin (Requires Biometrics)")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -139,8 +138,7 @@ elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
                 if send_otp(new_phone):
                     st.session_state.temp_reg_data = {
                         'phone': new_phone,
-                        'password': new_pass,
-                        'is_admin': is_admin
+                        'password': new_pass
                     }
                     set_state('REGISTER_MFA')
                     st.rerun()
@@ -159,26 +157,16 @@ elif st.session_state.auth_state == 'REGISTER_MFA':
     
     if st.button("Verify Code"):
         if check_otp(st.session_state.temp_reg_data['phone'], reg_code):
-            # If admin, must enroll fingerprint now
-            if st.session_state.temp_reg_data.get('is_admin'):
-                set_state('REGISTER_BIOMETRIC')
-            else:
-                # Direct creation for normal users
-                if add_user(st.session_state.temp_reg_data['phone'], st.session_state.temp_reg_data['password']):
-                    st.success("Account created successfully!")
-                    time.sleep(1.5)
-                    set_state('CREDENTIALS')
-                    st.rerun()
-                else:
-                    st.error("Error creating account.")
+            # All users must enroll fingerprint now
+            set_state('REGISTER_BIOMETRIC')
             st.rerun()
         else:
             st.error("Invalid verification code.")
 
 # 4. Registration Biometric Enrollment
 elif st.session_state.auth_state == 'REGISTER_BIOMETRIC':
-    st.title("Admin Enrollment: Biometric")
-    st.warning("Please enroll your fingerprint to complete registration.")
+    st.title("Biometric Enrollment")
+    st.warning("Please enroll your fingerprint to complete registration. This is required for all users.")
     
     sim_trigger = st.text_input("Keyboard Trigger (Type 's' and Enter to simulate scan)", key="reg_sim_trigger")
     
@@ -189,10 +177,10 @@ elif st.session_state.auth_state == 'REGISTER_BIOMETRIC':
             if add_user(
                 st.session_state.temp_reg_data['phone'], 
                 st.session_state.temp_reg_data['password'], 
-                is_admin=True, 
+                is_admin=False, # Default to regular user unless specified otherwise in logic
                 fingerprint_index=idx
             ):
-                st.success("Admin account created with Biometrics!")
+                st.success("Account created successfully with Biometrics!")
                 time.sleep(1.5)
                 set_state('CREDENTIALS')
                 st.rerun()
@@ -210,10 +198,8 @@ elif st.session_state.auth_state == 'MFA':
     if st.button("Verify Code"):
         if check_otp(st.session_state.current_user['phone_number'], otp_code):
             log_audit(st.session_state.current_user['id'], 'MFA_SUCCESS')
-            if st.session_state.current_user['is_admin']:
-                set_state('BIOMETRIC')
-            else:
-                set_state('DASHBOARD')
+            # All users must go through Biometric now
+            set_state('BIOMETRIC')
             st.rerun()
         else:
             log_audit(st.session_state.current_user['id'], 'MFA_FAIL')
@@ -223,7 +209,7 @@ elif st.session_state.auth_state == 'MFA':
 # 6. Login Biometric Verification
 elif st.session_state.auth_state == 'BIOMETRIC':
     st.title("Physical Biometric Check")
-    st.warning("Admin Access Required: Please use physical scanner or simulate with 's'.")
+    st.warning("Secure Access Required: Please use physical scanner or simulate with 's'.")
     sim_trigger = st.text_input("Keyboard Trigger (Type 's' and Enter to simulate scan)", key="sim_trigger")
     
     if st.button("Verify Fingerprint") or sim_trigger.lower() == 's':
