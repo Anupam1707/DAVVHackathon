@@ -91,6 +91,9 @@ def get_user_by_phone(phone_number: str):
     conn.close()
     return user
 
+def user_exists(phone_number: str) -> bool:
+    return get_user_by_phone(phone_number) is not None
+
 def update_failed_attempts(user_id: int, reset: bool = False):
     conn = get_connection()
     cursor = conn.cursor()
