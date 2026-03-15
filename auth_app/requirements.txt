@@ -1,0 +1,7 @@
+bcrypt
+twilio
+streamlit
+pyfingerprint
+python-dotenv
+PyJWT
+pyserial
