@@ -10,7 +10,7 @@ from scripts.db_manager import (
     init_db, get_user_by_phone, verify_password, update_failed_attempts, 
     log_audit, set_last_login, add_user, user_exists
 )
-from scripts.sms_service import send_otp, check_otp
+from scripts.sms_service import send_otp, check_otp, get_latest_otp
 from scripts.fingerprint import FingerprintManager
 
 load_dotenv()
@@ -49,6 +49,26 @@ def set_state(state):
 
 # --- Sidebar Tools ---
 with st.sidebar:
+    st.header("📱 Virtual Phone")
+    st.info("Incoming SMS will appear here for free.")
+    
+    # Check for both Login and Registration phone numbers
+    active_phone = None
+    if st.session_state.current_user:
+        active_phone = st.session_state.current_user['phone_number']
+    elif st.session_state.temp_reg_data:
+        active_phone = st.session_state.temp_reg_data.get('phone')
+    
+    if active_phone:
+        otp = get_latest_otp(active_phone)
+        if otp:
+            st.success(f"**From: System**\n\nYour 6-digit code is: `{otp}`")
+        else:
+            st.write("No unread messages.")
+    else:
+        st.write("Waiting for phone number input...")
+
+    st.markdown("---")
     st.subheader("System Tools")
     if st.button("Logout", key="logout_sidebar"):
         st.session_state.auth_state = 'CREDENTIALS'
