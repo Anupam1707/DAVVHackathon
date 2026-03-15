@@ -112,9 +112,14 @@ st.markdown("""
 # --- Session State Management ---
 if 'auth_state' not in st.session_state:
     st.session_state.auth_state = 'CREDENTIALS'
+if 'current_user' not in st.session_state:
     st.session_state.current_user = None
+if 'temp_reg_data' not in st.session_state:
     st.session_state.temp_reg_data = {}
+if 'last_active_phone' not in st.session_state:
     st.session_state.last_active_phone = None
+if 'virtual_inbox' not in st.session_state:
+    st.session_state.virtual_inbox = {}
 
 def set_state(state):
     st.session_state.auth_state = state
