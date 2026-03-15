@@ -7,6 +7,10 @@ from typing import Optional, Tuple
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'auth.db')
 
 def get_connection():
+    # Ensure the directory exists
+    db_dir = os.path.dirname(DB_PATH)
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
     return sqlite3.connect(DB_PATH)
 
 def init_db():
