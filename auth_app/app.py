@@ -33,134 +33,195 @@ st.set_page_config(
 # --- Advanced CSS ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
-    .main {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    
+    /* App Background */
+    .stApp {
+        background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020617 70%) !important;
+        background-attachment: fixed !important;
         color: #f8fafc;
     }
+    
+    /* Main Content Container & Glassmorphism */
     .st-emotion-cache-1r6slb0, .st-emotion-cache-12w0qpk {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 2rem;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 2.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
+    
+    /* Glowing Inputs */
+    .stTextInput>div>div>input {
+        background: rgba(0, 0, 0, 0.2) !important;
+        color: white !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 1.2rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 1rem !important;
+    }
+    .stTextInput>div>div>input:focus {
+        border-color: #6366f1 !important;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), inset 0 0 15px rgba(99, 102, 241, 0.1) !important;
+        transform: translateY(-1px);
+    }
+    
+    /* Premium Buttons */
     .stButton>button {
         width: 100%;
         border-radius: 12px;
         height: 3.5rem;
-        background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%);
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         color: white;
         font-weight: 600;
-        border: none;
-        transition: all 0.3s ease;
+        font-size: 1rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
+        box-shadow: 0 10px 20px -10px rgba(99, 102, 241, 0.5);
     }
     .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px -10px #6366f1;
-        background: linear-gradient(90deg, #4f46e5 0%, #9333ea 100%);
+        transform: translateY(-3px);
+        box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.4), 0 8px 10px -6px rgba(99, 102, 241, 0.2);
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        border-color: rgba(255,255,255,0.3);
     }
-    .stTextInput>div>div>input {
-        background: rgba(255, 255, 255, 0.05) !important;
-        color: white !important;
-        border-radius: 10px !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        padding: 1rem !important;
+    .stButton>button:active {
+        transform: translateY(1px);
     }
+    
+    /* Hyper-Realistic Phone UI */
     .phone-container {
         background: #000;
-        border: 12px solid #222;
-        border-radius: 45px;
-        padding: 10px;
-        margin-top: 10px;
-        height: 500px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        border: 14px solid #1c1c1e;
+        border-radius: 50px;
+        margin-top: 15px;
+        height: 580px;
+        box-shadow: inset 0 0 0 2px #3a3a3c, 0 30px 60px rgba(0,0,0,0.6), 0 0 40px rgba(99,102,241,0.15);
         position: relative;
-    }
-    .phone-screen {
-        background: #f4f4f4;
-        height: 100%;
-        border-radius: 35px;
-        overflow-y: auto;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        color: #333;
+    }
+    .phone-notch {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 130px;
+        height: 30px;
+        background: #000;
+        border-bottom-left-radius: 20px;
+        border-bottom-right-radius: 20px;
+        z-index: 10;
+    }
+    .phone-screen {
+        background: #f2f2f7;
+        height: 100%;
+        width: 100%;
+        border-radius: 36px;
+        display: flex;
+        flex-direction: column;
+        color: #000;
+        position: relative;
+        overflow: hidden;
+    }
+    .status-bar {
+        height: 44px;
+        background: transparent;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 0 25px 5px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #000;
+        z-index: 5;
     }
     .sms-header {
-        background: #ffffff;
-        padding: 20px 15px 10px 15px;
-        border-bottom: 1px solid #ddd;
+        background: rgba(242, 242, 247, 0.85);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        padding: 10px 0 15px;
+        border-bottom: 0.5px solid rgba(60,60,67,0.18);
         text-align: center;
-        font-weight: 700;
-        font-size: 1.1rem;
-        color: #000;
-    }
-    .sms-contact {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        padding: 10px;
-        background: #fff;
-        margin-bottom: 10px;
+        z-index: 5;
     }
-    .avatar {
-        width: 35px;
-        height: 35px;
-        background: #ccc;
+    .sms-header-avatar {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(180deg, #b5b5ba, #8e8e93);
         border-radius: 50%;
-        margin-right: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.8rem;
         color: white;
-        font-weight: bold;
+        font-size: 20px;
+        margin-bottom: 5px;
+    }
+    .sms-header-name {
+        font-size: 11px;
+        font-weight: 500;
+        color: #8e8e93;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     .message-list {
-        padding: 10px;
+        padding: 15px;
         flex-grow: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end; /* Push messages to bottom */
+    }
+    .sms-timestamp {
+        text-align: center;
+        font-size: 11px;
+        color: #8e8e93;
+        font-weight: 500;
+        margin-bottom: 15px;
+        margin-top: auto; /* Push to bottom if empty */
     }
     .message-bubble {
         background: #e9e9eb;
-        color: black;
-        padding: 10px 14px;
-        border-radius: 18px;
-        margin-bottom: 8px;
-        font-size: 0.85rem;
+        color: #000;
+        padding: 12px 16px;
+        border-radius: 20px;
+        border-bottom-left-radius: 4px;
+        font-size: 0.95rem;
+        line-height: 1.3;
         max-width: 85%;
         align-self: flex-start;
-        line-height: 1.4;
         position: relative;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
     }
-    .message-bubble.blue {
-        background: #007aff;
-        color: white;
+    
+    @keyframes popIn {
+        0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
     }
-    .sms-time {
-        font-size: 0.7rem;
-        color: #999;
-        margin-top: 4px;
-        text-align: right;
-    }
-    .stat-card {
-        background: rgba(255, 255, 255, 0.03);
-        padding: 1.5rem;
-        border-radius: 12px;
-        border-left: 4px solid #6366f1;
-    }
+
+    /* Titles & Branding */
     .logo-text {
-        font-size: 2.5rem;
+        font-size: 3rem;
         font-weight: 800;
-        background: linear-gradient(90deg, #818cf8, #c084fc);
+        background: linear-gradient(to right, #818cf8, #e879f9, #38bdf8);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
+        letter-spacing: -1px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -202,21 +263,38 @@ with st.sidebar:
     phone_to_watch = st.session_state.last_active_phone
     
     # Generate the full HTML for the phone UI first (compact to avoid markdown code block triggers)
-    phone_html = '<div class="phone-container"><div class="phone-screen"><div class="sms-header">Messages</div>'
+    now = datetime.now().strftime("%I:%M")
+    
+    phone_html = f'''
+    <div class="phone-container">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+            <div class="status-bar">
+                <span>{now}</span>
+                <span>📶 5G 🔋</span>
+            </div>
+            <div class="sms-header">
+                <div class="sms-header-avatar">G</div>
+                <div class="sms-header-name">Guardian Auth</div>
+            </div>
+            <div class="message-list">
+    '''
     
     if phone_to_watch:
-        phone_html += f'<div class="sms-contact"><div class="avatar" style="background:#007aff">G</div><div style="font-size:0.9rem; font-weight:600">Guardian Auth</div></div>'
-        phone_html += '<div class="message-list">'
         otp = get_latest_otp(phone_to_watch)
         if otp:
-            phone_html += f'<div class="message-bubble">Your verification code is <b>{otp}</b>. Valid for 5 minutes.<div class="sms-time">Now</div></div>'
+            phone_html += f'''
+                <div class="sms-timestamp">Today {now}</div>
+                <div class="message-bubble">
+                    Your secure verification code is <b>{otp}</b>.<br><br>Valid for 5 minutes. Do not share this code.
+                </div>
+            '''
         else:
-            phone_html += f'<div style="text-align:center; padding-top:40px; color:#999; font-size:0.8rem">No messages yet to {phone_to_watch}</div>'
-        phone_html += '</div>'
+            phone_html += f'<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.85rem">Waiting for signals on<br>{phone_to_watch}...</div>'
     else:
-        phone_html += '<div style="text-align:center; padding-top:100px; color:#999; font-size:0.9rem">📵 Connect Device</div>'
+        phone_html += '<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.9rem">📵 Connect Device</div>'
     
-    phone_html += '</div></div>'
+    phone_html += '</div></div></div>'
     
     # Render the entire phone in one go
     st.markdown(phone_html, unsafe_allow_html=True)
