@@ -1,0 +1,6 @@
+*.jpg
+*.env
+auth_app/data/*.db
+__pycache__/
+*.pyc
+.streamlit/

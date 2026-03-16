@@ -11,7 +11,7 @@ from scripts.db_manager import (
     init_db, get_user_by_phone, verify_password, update_failed_attempts, 
     log_audit, set_last_login, add_user, user_exists, update_fingerprint_index,
     get_all_users, toggle_user_lock, toggle_user_admin, get_all_audit_logs,
-    update_user_details, delete_user
+    update_user_details, delete_user, factory_reset, get_user_audit_logs
 )
 from scripts.sms_service import send_otp, check_otp, get_latest_otp
 from scripts.fingerprint import FingerprintManager
@@ -109,6 +109,14 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+def generate_token(user_id: int, phone: str):
+    payload = {
+        'user_id': user_id,
+        'phone': phone,
+        'exp': datetime.utcnow() + timedelta(hours=1)
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+
 # --- Session State Management ---
 if 'auth_state' not in st.session_state:
     st.session_state.auth_state = 'CREDENTIALS'
@@ -120,6 +128,8 @@ if 'last_active_phone' not in st.session_state:
     st.session_state.last_active_phone = None
 if 'virtual_inbox' not in st.session_state:
     st.session_state.virtual_inbox = {}
+if 'session_token' not in st.session_state:
+    st.session_state.session_token = None
 
 def set_state(state):
     st.session_state.auth_state = state
@@ -157,6 +167,14 @@ with st.sidebar:
         if st.button("Initialize Master Admin"):
             if add_user("+1000", "AdminPassword123", is_admin=True):
                 st.success("Master Admin initialized.")
+        if st.button("☣️ Factory Reset"):
+            factory_reset()
+            st.session_state.auth_state = 'CREDENTIALS'
+            st.session_state.current_user = None
+            st.session_state.last_active_phone = None
+            st.session_state.virtual_inbox = {}
+            st.session_state.session_token = None
+            st.rerun()
         if st.button("🔴 System Reset"):
             st.session_state.auth_state = 'CREDENTIALS'
             st.session_state.current_user = None
@@ -180,14 +198,21 @@ if st.session_state.auth_state == 'CREDENTIALS':
                 if user['is_locked']:
                     st.error("❌ Hardware Locked.")
                 elif verify_password(password, user['password_hash']):
+                    update_failed_attempts(user['id'], reset=True)
+                    log_audit(user['id'], "LOGIN_ATTEMPT_SUCCESS")
                     st.session_state.last_active_phone = phone
                     st.session_state.current_user = user
                     if send_otp(phone):
                         set_state('MFA')
                         st.rerun()
                 else:
+                    update_failed_attempts(user['id'])
+                    log_audit(user['id'], "LOGIN_ATTEMPT_FAILURE")
+                    time.sleep(2)  # Rate limiting on failure
                     st.error("Invalid Credentials.")
             else:
+                log_audit(None, f"LOGIN_ATTEMPT_UNKNOWN_PHONE: {phone}")
+                time.sleep(2)  # Rate limiting on failure
                 st.error("Invalid Credentials.")
     with col2:
         if st.button("Enroll New Device"):
@@ -204,6 +229,7 @@ elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
         if len(new_pass) >= 12 and new_pass == confirm and not user_exists(new_phone):
             st.session_state.last_active_phone = new_phone
             st.session_state.temp_reg_data = {'phone': new_phone, 'password': new_pass}
+            log_audit(None, f"REGISTRATION_STARTED: {new_phone}")
             if send_otp(new_phone):
                 set_state('REGISTER_MFA')
                 st.rerun()
@@ -220,12 +246,15 @@ elif st.session_state.auth_state in ['REGISTER_MFA', 'MFA']:
     
     if st.button("Verify"):
         if check_otp(st.session_state.last_active_phone, otp_code):
+            log_audit(st.session_state.current_user['id'] if st.session_state.current_user else None, "MFA_VERIFIED")
             if st.session_state.auth_state == 'REGISTER_MFA':
                 set_state('REGISTER_BIOMETRIC')
             else:
                 set_state('BIOMETRIC')
             st.rerun()
         else:
+            log_audit(st.session_state.current_user['id'] if st.session_state.current_user else None, "MFA_FAILED")
+            time.sleep(2)
             st.error("Invalid code.")
 
 elif st.session_state.auth_state in ['REGISTER_BIOMETRIC', 'BIOMETRIC']:
@@ -238,16 +267,29 @@ elif st.session_state.auth_state in ['REGISTER_BIOMETRIC', 'BIOMETRIC']:
             idx = fm.enroll_user()
             if idx != -1:
                 add_user(st.session_state.temp_reg_data['phone'], st.session_state.temp_reg_data['password'], fingerprint_index=idx)
+                log_audit(None, f"USER_ENROLLED: {st.session_state.temp_reg_data['phone']}")
                 set_state('CREDENTIALS')
+            else:
+                st.error("Biometric enrollment failed.")
         else:
             user = st.session_state.current_user
             if user['fingerprint_index'] == -1:
                 idx = fm.enroll_user()
                 update_fingerprint_index(user['id'], idx)
+                log_audit(user['id'], "BIOMETRIC_ENROLLED_ON_LOGIN")
+                set_last_login(user['id'])
+                st.session_state.session_token = generate_token(user['id'], user['phone_number'])
                 set_state('DASHBOARD')
             else:
                 if fm.verify_user(user['fingerprint_index']):
+                    log_audit(user['id'], "BIOMETRIC_VERIFIED")
+                    set_last_login(user['id'])
+                    st.session_state.session_token = generate_token(user['id'], user['phone_number'])
                     set_state('DASHBOARD')
+                else:
+                    log_audit(user['id'], "BIOMETRIC_FAILED")
+                    time.sleep(2)
+                    st.error("Biometric verification failed.")
         st.rerun()
 
 elif st.session_state.auth_state == 'DASHBOARD':
@@ -259,25 +301,52 @@ elif st.session_state.auth_state == 'DASHBOARD':
     with tabs[0]:
         st.success("Session Verified.")
         st.metric("System Security Level", "ELITE", "MAX")
+        if st.session_state.session_token:
+            with st.expander("🔑 Session Token"):
+                st.code(st.session_state.session_token, language="jwt")
     
     with tabs[1]:
         st.subheader("Triple-Layer Health")
         st.progress(100, "Layer 1: Bcrypt-12")
         st.progress(100, "Layer 2: Virtual SMS")
         st.progress(100, "Layer 3: Biometric")
+        st.info("JWT session token issued.")
+        
+        st.subheader("Personal Audit History")
+        user_logs = get_user_audit_logs(user['id'], limit=100)
+        if user_logs:
+            st.dataframe(pd.DataFrame(user_logs))
+        else:
+            st.write("No logs found.")
 
     if user['is_admin']:
         with tabs[2]:
             st.subheader("Control Panel")
             all_users = get_all_users()
             st.dataframe(pd.DataFrame(all_users))
-            t_id = st.number_input("User ID", min_value=1, step=1)
-            if st.button("Purge User"):
-                delete_user(t_id)
-                st.rerun()
+            
+            st.subheader("Audit Logs")
+            logs = get_all_audit_logs(limit=20)
+            st.dataframe(pd.DataFrame(logs))
+
+            t_id = st.number_input("User ID to manage", min_value=1, step=1)
+            col_admin1, col_admin2 = st.columns(2)
+            with col_admin1:
+                if st.button("Purge User"):
+                    delete_user(t_id)
+                    log_audit(user['id'], f"USER_DELETED: {t_id}")
+                    st.rerun()
+            with col_admin2:
+                if st.button("Unlock User"):
+                    toggle_user_lock(t_id, False)
+                    update_failed_attempts(t_id, reset=True)
+                    log_audit(user['id'], f"USER_UNLOCKED: {t_id}")
+                    st.rerun()
 
     if st.button("Logout"):
+        log_audit(user['id'], "LOGOUT")
         st.session_state.auth_state = 'CREDENTIALS'
         st.session_state.current_user = None
         st.session_state.last_active_phone = None
+        st.session_state.session_token = None
         st.rerun()

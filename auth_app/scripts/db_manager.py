@@ -184,6 +184,22 @@ def get_all_audit_logs(limit: int = 50):
     conn.close()
     return logs
 
+def get_user_audit_logs(user_id: int, limit: int = 50):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?', (user_id, limit))
+    logs = cursor.fetchall()
+    conn.close()
+    return logs
+
+def factory_reset():
+    import sqlite3
+    # Ensure any existing connections are handled (though SQLite handles file deletion ok usually)
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+    init_db()
+
 if __name__ == "__main__":
     init_db()
     print("Database initialized.")
