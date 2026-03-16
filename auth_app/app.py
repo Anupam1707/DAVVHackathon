@@ -201,38 +201,21 @@ with st.sidebar:
     # Track which phone number we should look for messages for
     phone_to_watch = st.session_state.last_active_phone
     
-    # Generate the full HTML for the phone UI first
+    # Generate the full HTML for the phone UI first (compact to avoid markdown code block triggers)
     phone_html = '<div class="phone-container"><div class="phone-screen"><div class="sms-header">Messages</div>'
     
     if phone_to_watch:
-        phone_html += f'''
-            <div class="sms-contact">
-                <div class="avatar" style="background:#007aff">G</div>
-                <div style="font-size:0.9rem; font-weight:600">Guardian Auth</div>
-            </div>
-            <div class="message-list">
-        '''
+        phone_html += f'<div class="sms-contact"><div class="avatar" style="background:#007aff">G</div><div style="font-size:0.9rem; font-weight:600">Guardian Auth</div></div>'
+        phone_html += '<div class="message-list">'
         otp = get_latest_otp(phone_to_watch)
         if otp:
-            phone_html += f'''
-                <div class="message-bubble">
-                    Your verification code is <b>{otp}</b>. Valid for 5 minutes.
-                    <div class="sms-time">Now</div>
-                </div>
-            '''
+            phone_html += f'<div class="message-bubble">Your verification code is <b>{otp}</b>. Valid for 5 minutes.<div class="sms-time">Now</div></div>'
         else:
-            phone_html += f'''
-                <div style="text-align:center; padding-top:40px; color:#999; font-size:0.8rem">
-                    No messages yet from {phone_to_watch}
-                </div>
-            '''
+            phone_html += f'<div style="text-align:center; padding-top:40px; color:#999; font-size:0.8rem">No messages yet from {phone_to_watch}</div>'
         phone_html += '</div>'
     else:
-        phone_html += '''
-            <div style="text-align:center; padding-top:100px; color:#999; font-size:0.9rem">
-                📵 Connect Device
-            </div>
-        '''
+        phone_html += '<div style="text-align:center; padding-top:100px; color:#999; font-size:0.9rem">📵 Connect Device</div>'
+    
     phone_html += '</div></div>'
     
     # Render the entire phone in one go
