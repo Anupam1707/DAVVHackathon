@@ -164,9 +164,6 @@ with st.sidebar:
 
     st.divider()
     with st.expander("🛠️ Advanced Settings"):
-        if st.button("Initialize Master Admin"):
-            if add_user("+1000", "AdminPassword123", is_admin=True):
-                st.success("Master Admin initialized.")
         if st.button("☣️ Factory Reset"):
             factory_reset()
             st.session_state.auth_state = 'CREDENTIALS'
