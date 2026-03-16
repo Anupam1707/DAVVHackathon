@@ -263,7 +263,7 @@ with st.sidebar:
     # Generate the full HTML for the phone UI first (compact to avoid markdown code block triggers)
     now = datetime.now().strftime("%I:%M")
     
-    phone_html = f'<div class="phone-container"><div class="phone-notch"></div><div class="phone-screen" style="padding-top:20px;"><div class="status-bar"><span>{now}</span><span>📶 5G 🔋</span></div><div class="sms-header"><div class="sms-header-avatar">G</div><div class="sms-header-name">Guardian Auth</div></div><div class="message-list">'
+    phone_html = f'<div class="phone-container"><div class="phone-notch"></div><div class="phone-screen" style="padding-top:20px;"><div class="status-bar"><span>{now}</span></div><div class="sms-header"><div class="sms-header-avatar">G</div><div class="sms-header-name">Guardian Auth</div></div><div class="message-list">'
     
     if phone_to_watch:
         otp = get_latest_otp(phone_to_watch)
