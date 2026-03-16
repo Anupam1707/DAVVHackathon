@@ -211,7 +211,7 @@ with st.sidebar:
         if otp:
             phone_html += f'<div class="message-bubble">Your verification code is <b>{otp}</b>. Valid for 5 minutes.<div class="sms-time">Now</div></div>'
         else:
-            phone_html += f'<div style="text-align:center; padding-top:40px; color:#999; font-size:0.8rem">No messages yet from {phone_to_watch}</div>'
+            phone_html += f'<div style="text-align:center; padding-top:40px; color:#999; font-size:0.8rem">No messages yet to {phone_to_watch}</div>'
         phone_html += '</div>'
     else:
         phone_html += '<div style="text-align:center; padding-top:100px; color:#999; font-size:0.9rem">📵 Connect Device</div>'
