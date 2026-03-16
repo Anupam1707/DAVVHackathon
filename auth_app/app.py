@@ -166,17 +166,16 @@ with st.sidebar:
     with st.expander("🛠️ Advanced Settings"):
         if st.button("☣️ Factory Reset"):
             factory_reset()
+            # Auto-initialize master admin after factory reset
+            add_user("+1000", "AdminPassword123", is_admin=True)
+            
             st.session_state.auth_state = 'CREDENTIALS'
             st.session_state.current_user = None
             st.session_state.last_active_phone = None
             st.session_state.virtual_inbox = {}
             st.session_state.session_token = None
-            st.rerun()
-        if st.button("🔴 System Reset"):
-            st.session_state.auth_state = 'CREDENTIALS'
-            st.session_state.current_user = None
-            st.session_state.last_active_phone = None
-            st.session_state.virtual_inbox = {}
+            st.success("System wiped. Master Admin (+1000) auto-initialized.")
+            time.sleep(1)
             st.rerun()
 
 # --- Main Flow ---
