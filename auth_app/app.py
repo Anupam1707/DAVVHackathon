@@ -76,21 +76,77 @@ st.markdown("""
     }
     .phone-container {
         background: #000;
-        border: 8px solid #333;
-        border-radius: 40px;
-        padding: 20px;
-        margin-top: 20px;
-        min-height: 400px;
-        box-shadow: inset 0 0 10px rgba(255,255,255,0.1);
+        border: 12px solid #222;
+        border-radius: 45px;
+        padding: 10px;
+        margin-top: 10px;
+        height: 500px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        position: relative;
+    }
+    .phone-screen {
+        background: #f4f4f4;
+        height: 100%;
+        border-radius: 35px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        color: #333;
+    }
+    .sms-header {
+        background: #ffffff;
+        padding: 20px 15px 10px 15px;
+        border-bottom: 1px solid #ddd;
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #000;
+    }
+    .sms-contact {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background: #fff;
+        margin-bottom: 10px;
+    }
+    .avatar {
+        width: 35px;
+        height: 35px;
+        background: #ccc;
+        border-radius: 50%;
+        margin-right: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        color: white;
+        font-weight: bold;
+    }
+    .message-list {
+        padding: 10px;
+        flex-grow: 1;
     }
     .message-bubble {
-        background: #2563eb;
+        background: #e9e9eb;
+        color: black;
+        padding: 10px 14px;
+        border-radius: 18px;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+        max-width: 85%;
+        align-self: flex-start;
+        line-height: 1.4;
+        position: relative;
+    }
+    .message-bubble.blue {
+        background: #007aff;
         color: white;
-        padding: 12px 16px;
-        border-radius: 20px 20px 20px 0;
-        margin-bottom: 10px;
-        font-size: 0.9rem;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    }
+    .sms-time {
+        font-size: 0.7rem;
+        color: #999;
+        margin-top: 4px;
+        text-align: right;
     }
     .stat-card {
         background: rgba(255, 255, 255, 0.03);
@@ -145,22 +201,47 @@ with st.sidebar:
     # Track which phone number we should look for messages for
     phone_to_watch = st.session_state.last_active_phone
     
-    st.markdown('<div class="phone-container">', unsafe_allow_html=True)
+    st.markdown("""
+        <div class="phone-container">
+            <div class="phone-screen">
+                <div class="sms-header">Messages</div>
+    """, unsafe_allow_html=True)
+
     if phone_to_watch:
+        st.markdown(f"""
+            <div class="sms-contact">
+                <div class="avatar" style="background:#007aff">G</div>
+                <div style="font-size:0.9rem; font-weight:600">Guardian Auth</div>
+            </div>
+            <div class="message-list">
+        """, unsafe_allow_html=True)
+        
         otp = get_latest_otp(phone_to_watch)
         if otp:
             st.markdown(f"""
                 <div class="message-bubble">
-                    <b>System Alert</b><br>
-                    Your secure verification code is: <b>{otp}</b><br>
-                    <small>Expires in 5 minutes</small>
+                    Your verification code is <b>{otp}</b>. Valid for 5 minutes.
+                    <div class="sms-time">Now</div>
                 </div>
             """, unsafe_allow_html=True)
+            if st.button("📋 Copy OTP", key="copy_otp_btn", use_container_width=True):
+                # Placeholder for clipboard copy - will show success
+                st.toast(f"OTP {otp} copied!")
         else:
-            st.write(f"💬 *Waiting for signals on {phone_to_watch}...*")
+            st.markdown("""
+                <div style="text-align:center; padding-top:40px; color:#999; font-size:0.8rem">
+                    No messages yet from {phone_to_watch}
+                </div>
+            """, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     else:
-        st.write("📵 *Connect a device by entering a phone number.*")
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("""
+            <div style="text-align:center; padding-top:100px; color:#999; font-size:0.9rem">
+                📵 Connect Device
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
     st.divider()
     with st.expander("🛠️ Advanced Settings"):
