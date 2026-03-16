@@ -41,36 +41,35 @@ st.markdown("""
     
     /* App Background */
     .stApp {
-        background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020617 70%) !important;
+        background: radial-gradient(circle at 50% 0%, #0c1a2e 0%, #010409 70%) !important;
         background-attachment: fixed !important;
-        color: #f8fafc;
+        color: #f0f6fc;
     }
     
     /* Main Content Container & Glassmorphism */
     .st-emotion-cache-1r6slb0, .st-emotion-cache-12w0qpk {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(13, 17, 23, 0.4);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border-radius: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(48, 54, 61, 0.5);
         padding: 2.5rem;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
     }
     
     /* Glowing Inputs */
     .stTextInput>div>div>input {
-        background: rgba(0, 0, 0, 0.2) !important;
-        color: white !important;
+        background: rgba(1, 4, 9, 0.5) !important;
+        color: #c9d1d9 !important;
         border-radius: 12px !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid #30363d !important;
         padding: 1.2rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.2s;
         font-size: 1rem !important;
     }
     .stTextInput>div>div>input:focus {
-        border-color: #6366f1 !important;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), inset 0 0 15px rgba(99, 102, 241, 0.1) !important;
-        transform: translateY(-1px);
+        border-color: #58a6ff !important;
+        box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2) !important;
     }
     
     /* Premium Buttons */
@@ -78,21 +77,20 @@ st.markdown("""
         width: 100%;
         border-radius: 12px;
         height: 3.5rem;
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        background: linear-gradient(135deg, #1f6feb 0%, #00d4ff 100%);
         color: white;
         font-weight: 600;
         font-size: 1rem;
-        border: 1px solid rgba(255,255,255,0.1);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
+        transition: all 0.3s;
         text-transform: uppercase;
         letter-spacing: 1.5px;
-        box-shadow: 0 10px 20px -10px rgba(99, 102, 241, 0.5);
+        box-shadow: 0 10px 20px -10px rgba(31, 111, 235, 0.5);
     }
     .stButton>button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.4), 0 8px 10px -6px rgba(99, 102, 241, 0.2);
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        border-color: rgba(255,255,255,0.3);
+        transform: translateY(-2px);
+        box-shadow: 0 20px 25px -5px rgba(31, 111, 235, 0.4);
+        background: linear-gradient(135deg, #388bfd 0%, #33fbff 100%);
     }
     .stButton>button:active {
         transform: translateY(1px);
@@ -105,7 +103,7 @@ st.markdown("""
         border-radius: 50px;
         margin-top: 15px;
         height: 580px;
-        box-shadow: inset 0 0 0 2px #3a3a3c, 0 30px 60px rgba(0,0,0,0.6), 0 0 40px rgba(99,102,241,0.15);
+        box-shadow: inset 0 0 0 2px #3a3a3c, 0 30px 60px rgba(0,0,0,0.8), 0 0 40px rgba(88,166,255,0.1);
         position: relative;
         overflow: hidden;
         display: flex;
@@ -217,7 +215,7 @@ st.markdown("""
     .logo-text {
         font-size: 3rem;
         font-weight: 800;
-        background: linear-gradient(to right, #818cf8, #e879f9, #38bdf8);
+        background: linear-gradient(to right, #58a6ff, #00d4ff, #7ee787);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.5rem;
