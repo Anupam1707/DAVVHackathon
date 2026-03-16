@@ -255,7 +255,7 @@ with st.sidebar:
     st.write("🔒 **Mobile Hardware Auth**")
     st.divider()
     
-    st.subheader("📱 Device Inbox")
+    st.subheader("📱 Device Inbox (Simulation)")
     
     # Track which phone number we should look for messages for
     phone_to_watch = st.session_state.last_active_phone
@@ -373,38 +373,52 @@ elif st.session_state.auth_state in ['REGISTER_MFA', 'MFA']:
 
 elif st.session_state.auth_state in ['REGISTER_BIOMETRIC', 'BIOMETRIC']:
     st.markdown('<p class="logo-text">Biometric Scan</p>', unsafe_allow_html=True)
-    sim = st.text_input("Keyboard Scan ('s' to simulate)", key="bio_sim")
+    st.write("🔒 **Waiting for hardware signal...**")
     
-    if st.button("Authorize") or sim.lower() == 's':
-        fm = FingerprintManager()
-        if st.session_state.auth_state == 'REGISTER_BIOMETRIC':
-            idx = fm.enroll_user()
-            if idx != -1:
-                add_user(st.session_state.temp_reg_data['phone'], st.session_state.temp_reg_data['password'], fingerprint_index=idx)
-                log_audit(None, f"USER_ENROLLED: {st.session_state.temp_reg_data['phone']}")
-                set_state('CREDENTIALS')
-            else:
-                st.error("Biometric enrollment failed.")
-        else:
-            user = st.session_state.current_user
-            if user['fingerprint_index'] == -1:
+    if st.button("🔴 Touch Sensor to Authorize"):
+        with st.status("🧬 Scanning fingerprint...", expanded=True) as status:
+            progress_bar = st.progress(0)
+            for percent_complete in range(100):
+                time.sleep(0.02)
+                progress_bar.progress(percent_complete + 1)
+            
+            fm = FingerprintManager()
+            if st.session_state.auth_state == 'REGISTER_BIOMETRIC':
                 idx = fm.enroll_user()
-                update_fingerprint_index(user['id'], idx)
-                log_audit(user['id'], "BIOMETRIC_ENROLLED_ON_LOGIN")
-                set_last_login(user['id'])
-                st.session_state.session_token = generate_token(user['id'], user['phone_number'])
-                set_state('DASHBOARD')
+                if idx != -1:
+                    add_user(st.session_state.temp_reg_data['phone'], st.session_state.temp_reg_data['password'], fingerprint_index=idx)
+                    log_audit(None, f"USER_ENROLLED: {st.session_state.temp_reg_data['phone']}")
+                    status.update(label="✅ Identity Verified!", state="complete")
+                    time.sleep(1)
+                    set_state('CREDENTIALS')
+                else:
+                    status.update(label="❌ Enrollment Failed", state="error")
+                    st.error("Biometric enrollment failed.")
             else:
-                if fm.verify_user(user['fingerprint_index']):
-                    log_audit(user['id'], "BIOMETRIC_VERIFIED")
+                user = st.session_state.current_user
+                if user['fingerprint_index'] == -1:
+                    idx = fm.enroll_user()
+                    update_fingerprint_index(user['id'], idx)
+                    log_audit(user['id'], "BIOMETRIC_ENROLLED_ON_LOGIN")
                     set_last_login(user['id'])
                     st.session_state.session_token = generate_token(user['id'], user['phone_number'])
+                    status.update(label="✅ New Profile Linked!", state="complete")
+                    time.sleep(1)
                     set_state('DASHBOARD')
                 else:
-                    log_audit(user['id'], "BIOMETRIC_FAILED")
-                    time.sleep(2)
-                    st.error("Biometric verification failed.")
-        st.rerun()
+                    if fm.verify_user(user['fingerprint_index']):
+                        log_audit(user['id'], "BIOMETRIC_VERIFIED")
+                        set_last_login(user['id'])
+                        st.session_state.session_token = generate_token(user['id'], user['phone_number'])
+                        status.update(label="✅ Access Granted!", state="complete")
+                        time.sleep(1)
+                        set_state('DASHBOARD')
+                    else:
+                        log_audit(user['id'], "BIOMETRIC_FAILED")
+                        status.update(label="❌ Match Failed", state="error")
+                        time.sleep(2)
+                        st.error("Biometric verification failed.")
+            st.rerun()
 
 elif st.session_state.auth_state == 'DASHBOARD':
     user = st.session_state.current_user
