@@ -217,7 +217,8 @@ if st.session_state.auth_state == 'CREDENTIALS':
 
 elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
     st.markdown('<p class="logo-text">Enrollment</p>', unsafe_allow_html=True)
-    new_phone = st.text_input("Mobile Number")
+    st.info("💡 Passphrase must be at least 12 characters long.")
+    new_phone = st.text_input("Mobile Number", placeholder="+1XXXXXXXXXX")
     new_pass = st.text_input("Passphrase", type="password")
     confirm = st.text_input("Confirm", type="password")
     
@@ -317,27 +318,62 @@ elif st.session_state.auth_state == 'DASHBOARD':
 
     if user['is_admin']:
         with tabs[2]:
-            st.subheader("Control Panel")
+            st.subheader("👥 System Directory")
             all_users = get_all_users()
             st.dataframe(pd.DataFrame(all_users))
             
-            st.subheader("Audit Logs")
+            st.divider()
+            
+            col_admin_a, col_admin_b = st.columns(2)
+            
+            with col_admin_a:
+                st.subheader("➕ Quick Enroll")
+                admin_new_phone = st.text_input("New Phone", key="admin_add_phone")
+                admin_new_pass = st.text_input("Passphrase", type="password", key="admin_add_pass")
+                if st.button("Create User"):
+                    if len(admin_new_pass) >= 12 and not user_exists(admin_new_phone):
+                        add_user(admin_new_phone, admin_new_pass)
+                        log_audit(user['id'], f"ADMIN_ADDED_USER: {admin_new_phone}")
+                        st.success("User created.")
+                        st.rerun()
+                    else:
+                        st.error("Invalid phone or weak password.")
+
+            with col_admin_b:
+                st.subheader("🛠️ Manage Selected User")
+                t_id = st.number_input("User ID to manage", min_value=1, step=1)
+                
+                # Management buttons in a grid
+                m_col1, m_col2 = st.columns(2)
+                with m_col1:
+                    if st.button("❌ Purge User"):
+                        delete_user(t_id)
+                        log_audit(user['id'], f"USER_DELETED: {t_id}")
+                        st.rerun()
+                    if st.button("🔓 Unlock User"):
+                        toggle_user_lock(t_id, False)
+                        update_failed_attempts(t_id, reset=True)
+                        log_audit(user['id'], f"USER_UNLOCKED: {t_id}")
+                        st.rerun()
+                    if st.button("🔒 Lock User"):
+                        toggle_user_lock(t_id, True)
+                        log_audit(user['id'], f"USER_LOCKED: {t_id}")
+                        st.rerun()
+                
+                with m_col2:
+                    if st.button("⭐ Promote Admin"):
+                        toggle_user_admin(t_id, True)
+                        log_audit(user['id'], f"USER_PROMOTED: {t_id}")
+                        st.rerun()
+                    if st.button("📉 Demote Admin"):
+                        toggle_user_admin(t_id, False)
+                        log_audit(user['id'], f"USER_DEMOTED: {t_id}")
+                        st.rerun()
+
+            st.divider()
+            st.subheader("📜 System Audit Logs")
             logs = get_all_audit_logs(limit=20)
             st.dataframe(pd.DataFrame(logs))
-
-            t_id = st.number_input("User ID to manage", min_value=1, step=1)
-            col_admin1, col_admin2 = st.columns(2)
-            with col_admin1:
-                if st.button("Purge User"):
-                    delete_user(t_id)
-                    log_audit(user['id'], f"USER_DELETED: {t_id}")
-                    st.rerun()
-            with col_admin2:
-                if st.button("Unlock User"):
-                    toggle_user_lock(t_id, False)
-                    update_failed_attempts(t_id, reset=True)
-                    log_audit(user['id'], f"USER_UNLOCKED: {t_id}")
-                    st.rerun()
 
     if st.button("Logout"):
         log_audit(user['id'], "LOGOUT")
