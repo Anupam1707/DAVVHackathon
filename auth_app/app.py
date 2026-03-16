@@ -132,18 +132,16 @@ st.markdown("""
         position: relative;
         overflow: hidden;
     }
-    .bottom-bar {
-        height: 35px;
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
+    .status-bar {
+        height: 30px;
+        background: transparent;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0 20px;
+        padding: 5px 20px 0;
         font-size: 12px;
         font-weight: 600;
-        color: #8e8e93;
-        border-top: 0.5px solid rgba(60,60,67,0.1);
+        color: #000;
         z-index: 5;
     }
     .sms-header {
@@ -265,7 +263,7 @@ with st.sidebar:
     # Generate the full HTML for the phone UI first (compact to avoid markdown code block triggers)
     now = datetime.now().strftime("%I:%M")
     
-    phone_html = f'<div class="phone-container"><div class="phone-notch"></div><div class="phone-screen" style="padding-top:25px;"><div class="sms-header"><div class="sms-header-avatar">G</div><div class="sms-header-name">Guardian Auth</div></div><div class="message-list">'
+    phone_html = f'<div class="phone-container"><div class="phone-notch"></div><div class="phone-screen"><div class="status-bar"><span>{now}</span><span>📶 5G 🔋</span></div><div class="sms-header"><div class="sms-header-avatar">G</div><div class="sms-header-name">Guardian Auth</div></div><div class="message-list">'
     
     if phone_to_watch:
         otp = get_latest_otp(phone_to_watch)
@@ -276,8 +274,7 @@ with st.sidebar:
     else:
         phone_html += '<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.9rem">📵 Connect Device</div>'
     
-    # Add bottom status bar (moved from top to avoid notch)
-    phone_html += f'</div><div class="bottom-bar"><span>{now}</span><span>📶 5G 🔋</span></div></div></div>'
+    phone_html += '</div></div></div>'
     
     # Render the entire phone in one go
     st.markdown(phone_html, unsafe_allow_html=True)
