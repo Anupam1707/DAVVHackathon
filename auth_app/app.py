@@ -279,13 +279,6 @@ with st.sidebar:
     # Render the entire phone in one go
     st.markdown(phone_html, unsafe_allow_html=True)
 
-    # Place the action button below the phone for functionality
-    if phone_to_watch:
-        otp = get_latest_otp(phone_to_watch)
-        if otp:
-            if st.button("📋 Copy Verification Code", key="copy_otp_btn", use_container_width=True):
-                st.toast(f"OTP {otp} copied to clipboard!")
-
     st.divider()
     with st.expander("🛠️ Advanced Settings"):
         if st.button("☣️ Factory Reset"):
