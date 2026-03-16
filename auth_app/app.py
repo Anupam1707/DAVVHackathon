@@ -263,30 +263,12 @@ with st.sidebar:
     # Generate the full HTML for the phone UI first (compact to avoid markdown code block triggers)
     now = datetime.now().strftime("%I:%M")
     
-    phone_html = f'''
-    <div class="phone-container">
-        <div class="phone-notch"></div>
-        <div class="phone-screen">
-            <div class="status-bar">
-                <span>{now}</span>
-                <span>📶 5G 🔋</span>
-            </div>
-            <div class="sms-header">
-                <div class="sms-header-avatar">G</div>
-                <div class="sms-header-name">Guardian Auth</div>
-            </div>
-            <div class="message-list">
-    '''
+    phone_html = f'<div class="phone-container"><div class="phone-notch"></div><div class="phone-screen"><div class="status-bar"><span>{now}</span><span>📶 5G 🔋</span></div><div class="sms-header"><div class="sms-header-avatar">G</div><div class="sms-header-name">Guardian Auth</div></div><div class="message-list">'
     
     if phone_to_watch:
         otp = get_latest_otp(phone_to_watch)
         if otp:
-            phone_html += f'''
-                <div class="sms-timestamp">Today {now}</div>
-                <div class="message-bubble">
-                    Your secure verification code is <b>{otp}</b>.<br><br>Valid for 5 minutes. Do not share this code.
-                </div>
-            '''
+            phone_html += f'<div class="sms-timestamp">Today {now}</div><div class="message-bubble">Your secure verification code is <b>{otp}</b>.<br><br>Valid for 5 minutes. Do not share this code.</div>'
         else:
             phone_html += f'<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.85rem">Waiting for signals on<br>{phone_to_watch}...</div>'
     else:
