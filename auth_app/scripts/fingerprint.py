@@ -1,6 +1,10 @@
 import os
 import time
 import streamlit as st
+from dotenv import load_dotenv
+
+# Optional .env support (kept alongside Streamlit secrets).
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'), override=False)
 
 # Attempt to import pyfingerprint
 try:

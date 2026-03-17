@@ -2,10 +2,14 @@ import os
 import random
 import streamlit as st
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+# Optional .env support (kept alongside Streamlit secrets).
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'), override=False)
 
 def _get_secret(key: str, default=None):
     return st.secrets.get(key, os.getenv(key, default))

@@ -5,6 +5,7 @@ import jwt
 import os
 import pandas as pd
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
 from scripts.db_manager import (
     init_db, get_user_by_email, verify_password, update_failed_attempts,
@@ -14,6 +15,9 @@ from scripts.db_manager import (
 )
 from scripts.email_service import send_otp, check_otp, get_latest_otp, is_mock_mode
 from scripts.fingerprint import FingerprintManager
+
+# Optional .env support (kept alongside Streamlit secrets).
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'), override=False)
 
 
 def get_secret(key: str, default=None):
