@@ -158,7 +158,7 @@ with st.sidebar:
 # --- Main Flow ---
 if st.session_state.auth_state == 'CREDENTIALS':
     st.markdown('<p class="logo-text">Sign In</p>', unsafe_allow_html=True)
-    st.write("Enter your hardware-linked credentials.")
+    st.write("Enter your credentials.")
     
     email = st.text_input("Email", placeholder="your.email@gmail.com")
     password = st.text_input("Security Passphrase", type="password")
