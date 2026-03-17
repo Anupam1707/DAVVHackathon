@@ -21,7 +21,7 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            phone_number TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             failed_attempts INTEGER DEFAULT 0,
             is_locked BOOLEAN DEFAULT 0,
@@ -66,14 +66,14 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
-def add_user(phone_number: str, password: str, is_admin: bool = False, fingerprint_index: int = -1) -> bool:
+def add_user(email: str, password: str, is_admin: bool = False, fingerprint_index: int = -1) -> bool:
     conn = get_connection()
     cursor = conn.cursor()
     try:
         pw_hash = hash_password(password)
         cursor.execute(
-            'INSERT INTO users (phone_number, password_hash, is_admin, fingerprint_index) VALUES (?, ?, ?, ?)',
-            (phone_number, pw_hash, 1 if is_admin else 0, fingerprint_index)
+            'INSERT INTO users (email, password_hash, is_admin, fingerprint_index) VALUES (?, ?, ?, ?)',
+            (email, pw_hash, 1 if is_admin else 0, fingerprint_index)
         )
         conn.commit()
         return True
@@ -89,17 +89,17 @@ def update_fingerprint_index(user_id: int, index: int):
     conn.commit()
     conn.close()
 
-def get_user_by_phone(phone_number: str):
+def get_user_by_email(email: str):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE phone_number = ?', (phone_number,))
+    cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
     user = cursor.fetchone()
     conn.close()
     return user
 
-def user_exists(phone_number: str) -> bool:
-    return get_user_by_phone(phone_number) is not None
+def user_exists(email: str) -> bool:
+    return get_user_by_email(email) is not None
 
 def update_failed_attempts(user_id: int, reset: bool = False):
     conn = get_connection()
@@ -137,7 +137,7 @@ def get_all_users():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute('SELECT id, phone_number, is_locked, is_admin, fingerprint_index, last_login, created_at FROM users')
+    cursor.execute('SELECT id, email, is_locked, is_admin, fingerprint_index, last_login, created_at FROM users')
     users = cursor.fetchall()
     conn.close()
     return users

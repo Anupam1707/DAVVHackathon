@@ -8,12 +8,12 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 from scripts.db_manager import (
-    init_db, get_user_by_phone, verify_password, update_failed_attempts, 
+    init_db, get_user_by_email, verify_password, update_failed_attempts,
     log_audit, set_last_login, add_user, user_exists, update_fingerprint_index,
     get_all_users, toggle_user_lock, toggle_user_admin, get_all_audit_logs,
     update_user_details, delete_user, factory_reset, get_user_audit_logs
 )
-from scripts.sms_service import send_otp, check_otp, get_latest_otp
+from scripts.email_service import send_otp, check_otp, get_latest_otp, is_mock_mode
 from scripts.fingerprint import FingerprintManager
 
 load_dotenv()
@@ -239,8 +239,8 @@ if 'current_user' not in st.session_state:
     st.session_state.current_user = None
 if 'temp_reg_data' not in st.session_state:
     st.session_state.temp_reg_data = {}
-if 'last_active_phone' not in st.session_state:
-    st.session_state.last_active_phone = None
+if 'last_active_email' not in st.session_state:
+    st.session_state.last_active_email = None
 if 'virtual_inbox' not in st.session_state:
     st.session_state.virtual_inbox = {}
 if 'session_token' not in st.session_state:
@@ -252,25 +252,25 @@ def set_state(state):
 # --- Sidebar: The Virtual Phone ---
 with st.sidebar:
     st.markdown('<p class="logo-text">GUARDIAN</p>', unsafe_allow_html=True)
-    st.write("🔒 **Mobile Hardware Auth**")
+    st.write("🔒 **Email Hardware Auth**")
     st.divider()
     
-    st.subheader("📱 Device Inbox (Simulation)")
+    st.subheader("� Email Inbox (Simulation)")
     
-    # Track which phone number we should look for messages for
-    phone_to_watch = st.session_state.last_active_phone
+    # Track which email we should look for messages for
+    email_to_watch = st.session_state.get('last_active_email')
     
     # Generate the full HTML for the phone UI first (compact to avoid markdown code block triggers)
     now = datetime.now().strftime("%I:%M")
     
     phone_html = f'<div class="phone-container"><div class="phone-notch"></div><div class="phone-screen" style="padding-top:5px;"><div class="status-bar"><span>{now}</span><span> 📶 🔋</span></div><div class="sms-header"><div class="sms-header-avatar">G</div><div class="sms-header-name">Guardian Auth</div></div><div class="message-list">'
     
-    if phone_to_watch:
-        otp = get_latest_otp(phone_to_watch)
+    if email_to_watch:
+        otp = get_latest_otp(email_to_watch)
         if otp:
             phone_html += f'<div class="sms-timestamp">Today {now}</div><div class="message-bubble">Your secure verification code is <b>{otp}</b>.<br><br>Valid for 5 minutes. Do not share this code.</div>'
         else:
-            phone_html += f'<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.85rem">Waiting for signals on<br>{phone_to_watch}...</div>'
+            phone_html += f'<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.85rem">Waiting for signals on<br>{email_to_watch}...</div>'
     else:
         phone_html += '<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.9rem">📵 Connect Device</div>'
     
@@ -284,11 +284,11 @@ with st.sidebar:
         if st.button("☣️ Factory Reset"):
             factory_reset()
             # Auto-initialize master admin after factory reset
-            add_user("+1000", "AdminPassword123", is_admin=True)
+            add_user("admin@guardian.local", "AdminPassword123", is_admin=True)
             
             st.session_state.auth_state = 'CREDENTIALS'
             st.session_state.current_user = None
-            st.session_state.last_active_phone = None
+            st.session_state.last_active_email = None
             st.session_state.virtual_inbox = {}
             st.session_state.session_token = None
             st.success("System wiped. Master Admin (+1000) auto-initialized.")
@@ -300,31 +300,37 @@ if st.session_state.auth_state == 'CREDENTIALS':
     st.markdown('<p class="logo-text">Sign In</p>', unsafe_allow_html=True)
     st.write("Enter your hardware-linked credentials.")
     
-    phone = st.text_input("Device ID / Phone Number", placeholder="+1XXXXXXXXXX")
+    email = st.text_input("Device ID / Email", placeholder="your.email@gmail.com")
     password = st.text_input("Security Passphrase", type="password")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Identify Device"):
-            user = get_user_by_phone(phone)
+            user = get_user_by_email(email)
             if user:
                 if user['is_locked']:
                     st.error("❌ Hardware Locked.")
                 elif verify_password(password, user['password_hash']):
                     update_failed_attempts(user['id'], reset=True)
                     log_audit(user['id'], "LOGIN_ATTEMPT_SUCCESS")
-                    st.session_state.last_active_phone = phone
+                    st.session_state.last_active_email = email
                     st.session_state.current_user = user
-                    if send_otp(phone):
+                    if send_otp(email):
                         set_state('MFA')
                         st.rerun()
+                    else:
+                        err = st.session_state.get('gmail_last_error')
+                        if err:
+                            st.error(f"Failed to send OTP: {err}")
+                        else:
+                            st.error("Failed to send OTP (unknown error).")
                 else:
                     update_failed_attempts(user['id'])
                     log_audit(user['id'], "LOGIN_ATTEMPT_FAILURE")
                     time.sleep(2)  # Rate limiting on failure
                     st.error("Invalid Credentials.")
             else:
-                log_audit(None, f"LOGIN_ATTEMPT_UNKNOWN_PHONE: {phone}")
+                log_audit(None, f"LOGIN_ATTEMPT_UNKNOWN_EMAIL: {email}")
                 time.sleep(2)  # Rate limiting on failure
                 st.error("Invalid Credentials.")
     with col2:
@@ -335,18 +341,24 @@ if st.session_state.auth_state == 'CREDENTIALS':
 elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
     st.markdown('<p class="logo-text">Enrollment</p>', unsafe_allow_html=True)
     st.info("💡 Passphrase must be at least 12 characters long.")
-    new_phone = st.text_input("Mobile Number", placeholder="+1XXXXXXXXXX")
+    new_email = st.text_input("Email Address", placeholder="your.email@gmail.com")
     new_pass = st.text_input("Passphrase", type="password")
     confirm = st.text_input("Confirm", type="password")
     
     if st.button("Begin Link"):
-        if len(new_pass) >= 12 and new_pass == confirm and not user_exists(new_phone):
-            st.session_state.last_active_phone = new_phone
-            st.session_state.temp_reg_data = {'phone': new_phone, 'password': new_pass}
-            log_audit(None, f"REGISTRATION_STARTED: {new_phone}")
-            if send_otp(new_phone):
+        if len(new_pass) >= 12 and new_pass == confirm and not user_exists(new_email):
+            st.session_state.last_active_email = new_email
+            st.session_state.temp_reg_data = {'email': new_email, 'password': new_pass}
+            log_audit(None, f"REGISTRATION_STARTED: {new_email}")
+            if send_otp(new_email):
                 set_state('REGISTER_MFA')
                 st.rerun()
+            else:
+                err = st.session_state.get('gmail_last_error')
+                if err:
+                    st.error(f"Failed to send OTP: {err}")
+                else:
+                    st.error("Failed to send OTP (unknown error).")
         else:
             st.error("Check requirements and try again.")
     if st.button("Back"):
@@ -355,11 +367,11 @@ elif st.session_state.auth_state == 'REGISTER_CREDENTIALS':
 
 elif st.session_state.auth_state in ['REGISTER_MFA', 'MFA']:
     st.markdown('<p class="logo-text">MFA Challenge</p>', unsafe_allow_html=True)
-    st.info(f"Signal active for {st.session_state.last_active_phone}")
+    st.info(f"Signal active for {st.session_state.last_active_email}")
     otp_code = st.text_input("Verification Code", max_chars=6)
     
     if st.button("Verify"):
-        if check_otp(st.session_state.last_active_phone, otp_code):
+        if check_otp(st.session_state.last_active_email, otp_code):
             log_audit(st.session_state.current_user['id'] if st.session_state.current_user else None, "MFA_VERIFIED")
             if st.session_state.auth_state == 'REGISTER_MFA':
                 set_state('REGISTER_BIOMETRIC')
@@ -386,8 +398,8 @@ elif st.session_state.auth_state in ['REGISTER_BIOMETRIC', 'BIOMETRIC']:
             if st.session_state.auth_state == 'REGISTER_BIOMETRIC':
                 idx = fm.enroll_user()
                 if idx != -1:
-                    add_user(st.session_state.temp_reg_data['phone'], st.session_state.temp_reg_data['password'], fingerprint_index=idx)
-                    log_audit(None, f"USER_ENROLLED: {st.session_state.temp_reg_data['phone']}")
+                    add_user(st.session_state.temp_reg_data['email'], st.session_state.temp_reg_data['password'], fingerprint_index=idx)
+                    log_audit(None, f"USER_ENROLLED: {st.session_state.temp_reg_data['email']}")
                     status.update(label="✅ Identity Verified!", state="complete")
                     time.sleep(1)
                     set_state('CREDENTIALS')
@@ -409,7 +421,7 @@ elif st.session_state.auth_state in ['REGISTER_BIOMETRIC', 'BIOMETRIC']:
                     if fm.verify_user(user['fingerprint_index']):
                         log_audit(user['id'], "BIOMETRIC_VERIFIED")
                         set_last_login(user['id'])
-                        st.session_state.session_token = generate_token(user['id'], user['phone_number'])
+                        st.session_state.session_token = generate_token(user['id'], user['email'])
                         status.update(label="✅ Access Granted!", state="complete")
                         time.sleep(1)
                         set_state('DASHBOARD')
@@ -422,7 +434,7 @@ elif st.session_state.auth_state in ['REGISTER_BIOMETRIC', 'BIOMETRIC']:
 
 elif st.session_state.auth_state == 'DASHBOARD':
     user = st.session_state.current_user
-    st.markdown(f'<p class="logo-text">Authenticated: {user["phone_number"]}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="logo-text">Authenticated: {user["email"]}</p>', unsafe_allow_html=True)
     
     tabs = st.tabs(["🔒 Operations", "🛡️ Security Health", "⚙️ Admin"] if user['is_admin'] else ["🔒 Operations", "🛡️ Security Health"])
     
