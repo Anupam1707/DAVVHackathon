@@ -3,25 +3,17 @@ import random
 import streamlit as st
 from datetime import datetime, timedelta
 
-from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Ensure env vars are loaded when this module is imported (prefers .env, but falls back to .env.example)
-here = os.path.dirname(os.path.dirname(__file__))
-dotenv_path = os.path.join(here, '.env')
-dotenv_example = os.path.join(here, '.env.example')
-
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path, override=False)
-elif os.path.exists(dotenv_example):
-    load_dotenv(dotenv_example, override=False)
+def _get_secret(key: str, default=None):
+    return st.secrets.get(key, os.getenv(key, default))
 
 # OTP behavior configuration
-OTP_EXPIRY_MINUTES = int(os.getenv('OTP_EXPIRY_MINUTES', '5'))
-GMAIL_USER = os.getenv('GMAIL_USER')
-GMAIL_APP_PASSWORD = os.getenv('GMAIL_APP_PASSWORD')
+OTP_EXPIRY_MINUTES = int(_get_secret('OTP_EXPIRY_MINUTES', '5'))
+GMAIL_USER = _get_secret('GMAIL_USER')
+GMAIL_APP_PASSWORD = _get_secret('GMAIL_APP_PASSWORD')
 
 
 def _is_mock_mode() -> bool:

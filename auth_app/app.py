@@ -5,7 +5,6 @@ import jwt
 import os
 import pandas as pd
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 
 from scripts.db_manager import (
     init_db, get_user_by_email, verify_password, update_failed_attempts,
@@ -16,10 +15,12 @@ from scripts.db_manager import (
 from scripts.email_service import send_otp, check_otp, get_latest_otp, is_mock_mode
 from scripts.fingerprint import FingerprintManager
 
-load_dotenv()
+
+def get_secret(key: str, default=None):
+    return st.secrets.get(key, os.getenv(key, default))
 
 # Configuration
-SECRET_KEY = os.getenv('JWT_SECRET', 'your_super_secret_key')
+SECRET_KEY = get_secret('JWT_SECRET', 'your_super_secret_key')
 init_db()
 
 DEFAULT_USER_EMAIL = "anupamkanoongo@gmail.com"

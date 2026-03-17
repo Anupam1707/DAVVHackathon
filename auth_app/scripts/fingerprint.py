@@ -1,8 +1,6 @@
 import os
 import time
-from dotenv import load_dotenv
-
-load_dotenv()
+import streamlit as st
 
 # Attempt to import pyfingerprint
 try:
@@ -11,7 +9,12 @@ try:
 except ImportError:
     PYFINGERPRINT_AVAILABLE = False
 
-SERIAL_PORT = os.getenv('FINGERPRINT_SERIAL_PORT', '/dev/ttyUSB0')
+
+def _get_secret(key: str, default=None):
+    return st.secrets.get(key, os.getenv(key, default))
+
+
+SERIAL_PORT = _get_secret('FINGERPRINT_SERIAL_PORT', '/dev/ttyUSB0')
 
 class FingerprintManager:
     def __init__(self, port=SERIAL_PORT, baudrate=57600):
