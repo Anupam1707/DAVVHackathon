@@ -96,121 +96,6 @@ st.markdown("""
         transform: translateY(1px);
     }
     
-    /* Hyper-Realistic Phone UI */
-    .phone-container {
-        background: #000;
-        border: 14px solid #1c1c1e;
-        border-radius: 50px;
-        margin-top: 15px;
-        height: 580px;
-        box-shadow: inset 0 0 0 2px #3a3a3c, 0 30px 60px rgba(0,0,0,0.8), 0 0 40px rgba(88,166,255,0.1);
-        position: relative;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-    }
-    .phone-notch {
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 130px;
-        height: 30px;
-        background: #000;
-        border-bottom-left-radius: 20px;
-        border-bottom-right-radius: 20px;
-        z-index: 10;
-    }
-    .phone-screen {
-        background: #f2f2f7;
-        height: 100%;
-        width: 100%;
-        border-radius: 36px;
-        display: flex;
-        flex-direction: column;
-        color: #000;
-        position: relative;
-        overflow: hidden;
-    }
-    .status-bar {
-        height: 30px;
-        background: transparent;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 5px 20px 0;
-        font-size: 12px;
-        font-weight: 600;
-        color: #000;
-        z-index: 5;
-    }
-    .sms-header {
-        background: rgba(242, 242, 247, 0.85);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        padding: 10px 0 15px;
-        border-bottom: 0.5px solid rgba(60,60,67,0.18);
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        z-index: 5;
-    }
-    .sms-header-avatar {
-        width: 45px;
-        height: 45px;
-        background: linear-gradient(180deg, #b5b5ba, #8e8e93);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 20px;
-        margin-bottom: 5px;
-    }
-    .sms-header-name {
-        font-size: 11px;
-        font-weight: 500;
-        color: #8e8e93;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .message-list {
-        padding: 15px;
-        flex-grow: 1;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end; /* Push messages to bottom */
-    }
-    .sms-timestamp {
-        text-align: center;
-        font-size: 11px;
-        color: #8e8e93;
-        font-weight: 500;
-        margin-bottom: 15px;
-        margin-top: auto; /* Push to bottom if empty */
-    }
-    .message-bubble {
-        background: #e9e9eb;
-        color: #000;
-        padding: 12px 16px;
-        border-radius: 20px;
-        border-bottom-left-radius: 4px;
-        font-size: 0.95rem;
-        line-height: 1.3;
-        max-width: 85%;
-        align-self: flex-start;
-        position: relative;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-    }
-    
-    @keyframes popIn {
-        0% { opacity: 0; transform: scale(0.9) translateY(10px); }
-        100% { opacity: 1; transform: scale(1) translateY(0); }
-    }
-
     /* Titles & Branding */
     .logo-text {
         font-size: 3rem;
@@ -224,10 +109,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-def generate_token(user_id: int, phone: str):
+def generate_token(user_id: int, email: str):
     payload = {
         'user_id': user_id,
-        'phone': phone,
+        'email': email,
         'exp': datetime.utcnow() + timedelta(hours=1)
     }
     return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
@@ -249,51 +134,26 @@ if 'session_token' not in st.session_state:
 def set_state(state):
     st.session_state.auth_state = state
 
-# --- Sidebar: The Virtual Phone ---
+# --- Sidebar ---
 with st.sidebar:
-    st.markdown('<p class="logo-text">GUARDIAN</p>', unsafe_allow_html=True)
-    st.write("🔒 **Email Hardware Auth**")
+    st.markdown('<p class="logo-text" style="font-size:3rem; letter-spacing:-2px;">GUARDIAN</p>', unsafe_allow_html=True)
     st.divider()
-    
-    st.subheader("� Email Inbox (Simulation)")
-    
-    # Track which email we should look for messages for
-    email_to_watch = st.session_state.get('last_active_email')
-    
-    # Generate the full HTML for the phone UI first (compact to avoid markdown code block triggers)
-    now = datetime.now().strftime("%I:%M")
-    
-    phone_html = f'<div class="phone-container"><div class="phone-notch"></div><div class="phone-screen" style="padding-top:5px;"><div class="status-bar"><span>{now}</span><span> 📶 🔋</span></div><div class="sms-header"><div class="sms-header-avatar">G</div><div class="sms-header-name">Guardian Auth</div></div><div class="message-list">'
-    
-    if email_to_watch:
-        otp = get_latest_otp(email_to_watch)
-        if otp:
-            phone_html += f'<div class="sms-timestamp">Today {now}</div><div class="message-bubble">Your secure verification code is <b>{otp}</b>.<br><br>Valid for 5 minutes. Do not share this code.</div>'
-        else:
-            phone_html += f'<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.85rem">Waiting for signals on<br>{email_to_watch}...</div>'
-    else:
-        phone_html += '<div style="text-align:center; margin-bottom: auto; color:#8e8e93; font-size:0.9rem">📵 Connect Device</div>'
-    
-    phone_html += '</div></div></div>'
-    
-    # Render the entire phone in one go
-    st.markdown(phone_html, unsafe_allow_html=True)
 
-    st.divider()
-    with st.expander("🛠️ Advanced Settings"):
-        if st.button("☣️ Factory Reset"):
-            factory_reset()
-            # Auto-initialize master admin after factory reset
-            add_user("admin@guardian.local", "AdminPassword123", is_admin=True)
-            
+    current_user = st.session_state.get('current_user')
+    if current_user and st.session_state.get('auth_state') == 'DASHBOARD':
+        st.markdown(f"**👤 {current_user['email']}**")
+        st.caption("🟢 Session Active")
+        st.caption(f"Role: {'Admin' if current_user['is_admin'] else 'User'}")
+        st.divider()
+        if st.button("🚪 Logout", use_container_width=True):
+            log_audit(current_user['id'], "LOGOUT")
             st.session_state.auth_state = 'CREDENTIALS'
             st.session_state.current_user = None
             st.session_state.last_active_email = None
-            st.session_state.virtual_inbox = {}
             st.session_state.session_token = None
-            st.success("System wiped. Master Admin (+1000) auto-initialized.")
-            time.sleep(1)
             st.rerun()
+    else:
+        st.caption("🔒 Not signed in")
 
 # --- Main Flow ---
 if st.session_state.auth_state == 'CREDENTIALS':
@@ -413,7 +273,7 @@ elif st.session_state.auth_state in ['REGISTER_BIOMETRIC', 'BIOMETRIC']:
                     update_fingerprint_index(user['id'], idx)
                     log_audit(user['id'], "BIOMETRIC_ENROLLED_ON_LOGIN")
                     set_last_login(user['id'])
-                    st.session_state.session_token = generate_token(user['id'], user['phone_number'])
+                    st.session_state.session_token = generate_token(user['id'], user['email'])
                     status.update(label="✅ New Profile Linked!", state="complete")
                     time.sleep(1)
                     set_state('DASHBOARD')
@@ -471,16 +331,16 @@ elif st.session_state.auth_state == 'DASHBOARD':
             
             with col_admin_a:
                 st.subheader("➕ Quick Enroll")
-                admin_new_phone = st.text_input("New Phone", key="admin_add_phone")
+                admin_new_email = st.text_input("New Email", key="admin_add_email")
                 admin_new_pass = st.text_input("Passphrase", type="password", key="admin_add_pass")
                 if st.button("Create User"):
-                    if len(admin_new_pass) >= 12 and not user_exists(admin_new_phone):
-                        add_user(admin_new_phone, admin_new_pass)
-                        log_audit(user['id'], f"ADMIN_ADDED_USER: {admin_new_phone}")
+                    if len(admin_new_pass) >= 12 and not user_exists(admin_new_email):
+                        add_user(admin_new_email, admin_new_pass)
+                        log_audit(user['id'], f"ADMIN_ADDED_USER: {admin_new_email}")
                         st.success("User created.")
                         st.rerun()
                     else:
-                        st.error("Invalid phone or weak password.")
+                        st.error("Invalid email or weak password.")
 
             with col_admin_b:
                 st.subheader("🛠️ Manage Selected User")
@@ -518,10 +378,17 @@ elif st.session_state.auth_state == 'DASHBOARD':
             logs = get_all_audit_logs(limit=20)
             st.dataframe(pd.DataFrame(logs))
 
-    if st.button("Logout"):
-        log_audit(user['id'], "LOGOUT")
-        st.session_state.auth_state = 'CREDENTIALS'
-        st.session_state.current_user = None
-        st.session_state.last_active_phone = None
-        st.session_state.session_token = None
-        st.rerun()
+            st.divider()
+            st.subheader("⚠️ Danger Zone")
+            if st.button("☣️ Factory Reset", key="admin_factory_reset"):
+                factory_reset()
+                add_user("admin@guardian.local", "AdminPassword123", is_admin=True)
+                add_user("anupamkanoongo@gmail.com", "AdminPassword123", is_admin=False)
+                st.session_state.auth_state = 'CREDENTIALS'
+                st.session_state.current_user = None
+                st.session_state.last_active_email = None
+                st.session_state.virtual_inbox = {}
+                st.session_state.session_token = None
+                st.success("System wiped and default accounts re-initialized.")
+                time.sleep(1)
+                st.rerun()

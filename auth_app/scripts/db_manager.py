@@ -156,11 +156,11 @@ def toggle_user_admin(user_id: int, status: bool):
     conn.commit()
     conn.close()
 
-def update_user_details(user_id: int, new_phone: str = None, new_password: str = None):
+def update_user_details(user_id: int, new_email: str = None, new_password: str = None):
     conn = get_connection()
     cursor = conn.cursor()
-    if new_phone:
-        cursor.execute('UPDATE users SET phone_number = ? WHERE id = ?', (new_phone, user_id))
+    if new_email:
+        cursor.execute('UPDATE users SET email = ? WHERE id = ?', (new_email, user_id))
     if new_password:
         pw_hash = hash_password(new_password)
         cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (pw_hash, user_id))
