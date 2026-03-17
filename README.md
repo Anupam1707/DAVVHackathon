@@ -45,7 +45,14 @@ A high-security authentication system designed for small businesses where securi
     db_manager.py    # SQL queries, bcrypt hashing, and User locking
   app.py             # Main Streamlit Entry Point
   requirements.txt   # Project Dependencies
-  .env.example       # Environment Configuration Template
+  .env               # Environment Configuration (Optional, Git-ignored)
+
+/.streamlit
+  secrets.toml       # Streamlit Secrets Configuration (Primary, Git-ignored)
+  config.toml        # Optional Streamlit UI settings
+
+README.md            # This file
+.gitignore           # Git ignore patterns
 ```
 
 ## 🚀 Getting Started
@@ -60,8 +67,34 @@ A high-security authentication system designed for small businesses where securi
 pip install -r auth_app/requirements.txt
 ```
 
-### 3. Configuration
-Rename `.env.example` to `.env` and add your credentials:
+### 3. Configuration (Dual-Source Support)
+The app reads configuration from **either** `.streamlit/secrets.toml` (Streamlit Secrets, primary) **or** `.env` file (fallback). Both config methods are supported.
+
+#### Option A: Streamlit Secrets (Recommended for Production)
+Create `.streamlit/secrets.toml` at the project root:
+```toml
+GMAIL_USER = "your.gmail@gmail.com"
+GMAIL_APP_PASSWORD = "your_16_char_app_password"
+JWT_SECRET = "your_random_secret_key_here"
+FINGERPRINT_SERIAL_PORT = "/dev/ttyUSB0"
+OTP_EXPIRY_MINUTES = "5"
+TWILIO_ACCOUNT_SID = "your_sid_here"
+TWILIO_AUTH_TOKEN = "your_token_here"
+TWILIO_VERIFY_SERVICE_SID = "your_service_sid_here"
+```
+
+#### Option B: .env File (Development/Local Override)
+Create `auth_app/.env` for local development (will override secrets if set):
+```bash
+GMAIL_USER=your.gmail@gmail.com
+GMAIL_APP_PASSWORD=your_16_char_app_password
+JWT_SECRET=your_random_secret_key_here
+FINGERPRINT_SERIAL_PORT=/dev/ttyUSB0
+OTP_EXPIRY_MINUTES=5
+TWILIO_ACCOUNT_SID=your_sid_here
+TWILIO_AUTH_TOKEN=your_token_here
+TWILIO_VERIFY_SERVICE_SID=your_service_sid_here
+```
 
 #### Gmail Setup (Required for Email OTP)
 1. **Enable 2-Factor Authentication** on your Gmail account
@@ -72,12 +105,7 @@ Rename `.env.example` to `.env` and add your credentials:
    - Enter "Guardian Auth" as the name
    - Copy the 16-character password
 
-3. **Configure `.env`**:
-```bash
-GMAIL_USER=your.gmail@gmail.com
-GMAIL_APP_PASSWORD=abcd-efgh-ijkl-mnop  # Your 16-char app password
-JWT_SECRET=your_random_secret
-```
+3. **Add to `.streamlit/secrets.toml` or `auth_app/.env`**
 
 *Note: If Gmail credentials are missing, the app runs in **Mock Mode** (OTP logged to console and shown in the sidebar inbox).*
 
@@ -87,9 +115,36 @@ streamlit run auth_app/app.py
 ```
 
 ## 🧪 Testing the Flow
-1.  Open the app and use the **"Initialize Admin User"** button in the sidebar.
-2.  Login with:
-    *   **Email**: `admin@guardian.local`
-    *   **Passphrase**: `AdminPassword123`
-3.  Enter the MFA code (If in Mock Mode, check the sidebar inbox or console for the OTP).
-4.  For the Biometric step, either click "Verify Fingerprint" or type **'s'** in the trigger box and press Enter.
+
+### Default Account (Auto-Created on Boot)
+The app automatically creates a default admin account on every boot:
+- **Email**: `anupamkanoongo@gmail.com`
+- **Passphrase**: `AdminPassword123`
+- **Role**: Admin
+
+If this account is deleted, it will be recreated on the next app restart.
+
+### Testing Steps
+1. Open the app at `http://localhost:8501`
+2. Login with:
+   - **Email**: `anupamkanoongo@gmail.com`
+   - **Passphrase**: `AdminPassword123`
+3. Enter the MFA code (If in Mock Mode, check the sidebar or console for the OTP).
+4. Complete the Biometric scan:
+   - If fingerprint sensor is available, place your finger on the sensor.
+   - In simulation mode, click "Touch Sensor to Authorize" and the app will mock-enroll your fingerprint.
+
+### Admin Features
+Once logged in as admin, access the **⚙️ Admin** tab to:
+- **View all users** in the System Directory
+- **Create new users** with the Quick Enroll form
+- **Manage users**: Lock, unlock, delete, promote, or demote users
+- **View audit logs** for system activity
+- **Factory Reset**: Clear all users and reinitialize the default account
+
+## 🔐 Default Security Policies
+- **Password minimum**: 12 characters
+- **Failed login attempts**: 3 attempts before lockout
+- **OTP expiry**: 5 minutes (configurable)
+- **Session token expiry**: 1 hour
+- **Rate limiting**: 2-second delay on failed login attempts
