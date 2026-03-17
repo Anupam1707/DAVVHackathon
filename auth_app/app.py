@@ -22,6 +22,17 @@ load_dotenv()
 SECRET_KEY = os.getenv('JWT_SECRET', 'your_super_secret_key')
 init_db()
 
+DEFAULT_USER_EMAIL = "anupamkanoongo@gmail.com"
+DEFAULT_DEFAULT_PASSWORD = "AdminPassword123"
+
+# Ensure default account exists on every app boot.
+if not user_exists(DEFAULT_USER_EMAIL):
+    add_user(DEFAULT_USER_EMAIL, DEFAULT_DEFAULT_PASSWORD, is_admin=True)
+else:
+    existing_default_user = get_user_by_email(DEFAULT_USER_EMAIL)
+    if existing_default_user and not existing_default_user['is_admin']:
+        toggle_user_admin(existing_default_user['id'], True)
+
 # --- Page Config ---
 st.set_page_config(
     page_title="Guardian | Secure Auth",
@@ -382,8 +393,7 @@ elif st.session_state.auth_state == 'DASHBOARD':
             st.subheader("⚠️ Danger Zone")
             if st.button("☣️ Factory Reset", key="admin_factory_reset"):
                 factory_reset()
-                add_user("admin@guardian.local", "AdminPassword123", is_admin=True)
-                add_user("anupamkanoongo@gmail.com", "AdminPassword123", is_admin=False)
+                add_user(DEFAULT_USER_EMAIL, DEFAULT_DEFAULT_PASSWORD, is_admin=True)
                 st.session_state.auth_state = 'CREDENTIALS'
                 st.session_state.current_user = None
                 st.session_state.last_active_email = None
